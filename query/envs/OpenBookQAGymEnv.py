@@ -81,7 +81,7 @@ class OpenBookQAGymEnv(gym.Env):
         if exact_match:
             em = []
             for dataset in datasets.keys():
-                em.append(np.load(f"./csv/mrqa/{dataset}_exact.npy"))
+                em.append(np.load(f"./synced_data/csv/mrqa/{dataset}_exact.npy"))
             self.arm_results = np.concatenate(
                 (em),
                 axis=0,
@@ -89,7 +89,7 @@ class OpenBookQAGymEnv(gym.Env):
         else:
             f1 = []
             for dataset in datasets.keys():
-                f1.append(np.load(f"./csv/mrqa/{dataset}_f1.npy"))
+                f1.append(np.load(f"./synced_data/csv/mrqa/{dataset}_f1.npy"))
             self.arm_results = np.concatenate(
                 (f1),
                 axis=0,
@@ -111,32 +111,60 @@ class OpenBookQAGymEnv(gym.Env):
         )
 
         ### load embeddings
-        self.squad_question_np = np.load("./csv/mrqa/clip_emb_SQuAD_question.npy")
-        self.squad_context_np = np.load("./csv/mrqa/clip_emb_SQuAD_context.npy")
-        self.squad_answer_np = np.load("./csv/mrqa/clip_emb_SQuAD_answer.npy")
-        self.trivia_question_np = np.load(
-            "./csv/mrqa/clip_emb_TriviaQA-web_question.npy"
+        self.squad_question_np = np.load(
+            "./synced_data/csv/mrqa/clip_emb_SQuAD_question.npy"
         )
-        self.trivia_context_np = np.load("./csv/mrqa/clip_emb_TriviaQA-web_context.npy")
-        self.trivia_answer_np = np.load("./csv/mrqa/clip_emb_TriviaQA-web_answer.npy")
+        self.squad_context_np = np.load(
+            "./synced_data/csv/mrqa/clip_emb_SQuAD_context.npy"
+        )
+        self.squad_answer_np = np.load(
+            "./synced_data/csv/mrqa/clip_emb_SQuAD_answer.npy"
+        )
+        self.trivia_question_np = np.load(
+            "./synced_data/csv/mrqa/clip_emb_TriviaQA-web_question.npy"
+        )
+        self.trivia_context_np = np.load(
+            "./synced_data/csv/mrqa/clip_emb_TriviaQA-web_context.npy"
+        )
+        self.trivia_answer_np = np.load(
+            "./synced_data/csv/mrqa/clip_emb_TriviaQA-web_answer.npy"
+        )
         self.natural_question_np = np.load(
-            "./csv/mrqa/clip_emb_NaturalQuestionsShort_question.npy"
+            "./synced_data/csv/mrqa/clip_emb_NaturalQuestionsShort_question.npy"
         )
         self.natural_context_np = np.load(
-            "./csv/mrqa/clip_emb_NaturalQuestionsShort_context.npy"
+            "./synced_data/csv/mrqa/clip_emb_NaturalQuestionsShort_context.npy"
         )
         self.natural_answer_np = np.load(
-            "./csv/mrqa/clip_emb_NaturalQuestionsShort_answer.npy"
+            "./synced_data/csv/mrqa/clip_emb_NaturalQuestionsShort_answer.npy"
         )
-        self.news_question_np = np.load("./csv/mrqa/clip_emb_NewsQA_question.npy")
-        self.news_context_np = np.load("./csv/mrqa/clip_emb_NewsQA_context.npy")
-        self.news_answer_np = np.load("./csv/mrqa/clip_emb_NewsQA_answer.npy")
-        self.search_question_np = np.load("./csv/mrqa/clip_emb_SearchQA_question.npy")
-        self.search_context_np = np.load("./csv/mrqa/clip_emb_SearchQA_context.npy")
-        self.search_answer_np = np.load("./csv/mrqa/clip_emb_SearchQA_answer.npy")
-        self.hotpot_question_np = np.load("./csv/mrqa/clip_emb_HotpotQA_question.npy")
-        self.hotpot_context_np = np.load("./csv/mrqa/clip_emb_HotpotQA_context.npy")
-        self.hotpot_answer_np = np.load("./csv/mrqa/clip_emb_HotpotQA_answer.npy")
+        self.news_question_np = np.load(
+            "./synced_data/csv/mrqa/clip_emb_NewsQA_question.npy"
+        )
+        self.news_context_np = np.load(
+            "./synced_data/csv/mrqa/clip_emb_NewsQA_context.npy"
+        )
+        self.news_answer_np = np.load(
+            "./synced_data/csv/mrqa/clip_emb_NewsQA_answer.npy"
+        )
+        self.search_question_np = np.load(
+            "./synced_data/csv/mrqa/clip_emb_SearchQA_question.npy"
+        )
+        self.search_context_np = np.load(
+            "./synced_data/csv/mrqa/clip_emb_SearchQA_context.npy"
+        )
+        self.search_answer_np = np.load(
+            "./synced_data/csv/mrqa/clip_emb_SearchQA_answer.npy"
+        )
+        self.hotpot_question_np = np.load(
+            "./synced_data/csv/mrqa/clip_emb_HotpotQA_question.npy"
+        )
+        self.hotpot_context_np = np.load(
+            "./synced_data/csv/mrqa/clip_emb_HotpotQA_context.npy"
+        )
+        self.hotpot_answer_np = np.load(
+            "./synced_data/csv/mrqa/clip_emb_HotpotQA_answer.npy"
+        )
 
     def step(
         self, action: int, _idx: int = None, _dataset: str = None

@@ -77,7 +77,7 @@ class ImageNet1kCIFAR100GymEnv(gym.Env):
         self.reward_range = (0, 1)
         for idx, values in self.bandits.items():
             dataset, model = values
-            csv_path = f"./csv/{dataset}/{model}_df_validation.csv"
+            csv_path = f"./synced_data/csv/{dataset}/{model}_df_validation.csv"
             self.model_result_df[idx] = pd.read_csv(csv_path)
 
         ### input is an image or an embedding
@@ -353,8 +353,8 @@ class ImageNet1kCIFAR100GymEnvNp(gym.Env):
     ):
         super().reset(seed=seed, **kwargs)
         np.random.seed(seed)
-        cifar_X = np.load("./csv/clip_emb_cifar100.npy")
-        imagenet_X = np.load("./csv/clip_emb_imagenet-1k.npy")
+        cifar_X = np.load("./synced_data/csv/clip_emb_cifar100.npy")
+        imagenet_X = np.load("./synced_data/csv/clip_emb_imagenet-1k.npy")
         self.X = np.concatenate((cifar_X, imagenet_X), axis=0)
         arr = np.random.choice(
             np.arange(self.X.shape[0]),
@@ -363,8 +363,8 @@ class ImageNet1kCIFAR100GymEnvNp(gym.Env):
         )
         self.X = self.X[arr, :]
 
-        cifar_y = np.load("./csv/cifar100/cifar100_val.npy")
-        imagent_y = np.load("./csv/imagenet-1k/imagenet-1k_val.npy")
+        cifar_y = np.load("./synced_data/csv/cifar100/cifar100_val.npy")
+        imagent_y = np.load("./synced_data/csv/imagenet-1k/imagenet-1k_val.npy")
         self.y = np.concatenate((cifar_y, imagent_y), axis=0)
         self.y = self.y[arr, :]
 

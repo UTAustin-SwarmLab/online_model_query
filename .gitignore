@@ -1,5 +1,5 @@
 /tensorboard_log/
-/cumulative_reward/
+/synced_data/cumulative_reward/
 __pycache__/
 *.json
 *.csv

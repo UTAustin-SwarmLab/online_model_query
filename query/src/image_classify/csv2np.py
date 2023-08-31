@@ -20,7 +20,7 @@ bandits = {
 dfs = []
 for idx, values in bandits.items():
     dataset, model = values
-    csv_path = f"./csv/{dataset}/{model}_df_validation.csv"
+    csv_path = f"./synced_data/csv/{dataset}/{model}_df_validation.csv"
     df = pd.read_csv(csv_path)
     dfs.append(df)
     print(idx, dataset, model, df.shape)
@@ -38,7 +38,7 @@ for i in range(cifar100_val_set_size):
 print(cifar_np.shape)
 print(np.sum(cifar_np[:, :5], axis=0))
 print(np.sum(cifar_np[:, 5:], axis=0))
-np.save("./csv/cifar100/cifar100_val.npy", cifar_np)
+np.save("./synced_data/csv/cifar100/cifar100_val.npy", cifar_np)
 
 ### imagenet-1k
 imagenet_np = np.zeros((imagenet_val_set_size, 8))
@@ -51,4 +51,4 @@ print(imagenet_np.shape)
 print(imagenet_np)
 print(np.sum(imagenet_np[:, :5], axis=0))
 print(np.sum(imagenet_np[:, 5:], axis=0))
-np.save("./csv/imagenet-1k/imagenet-1k_val.npy", imagenet_np)
+np.save("./synced_data/csv/imagenet-1k/imagenet-1k_val.npy", imagenet_np)

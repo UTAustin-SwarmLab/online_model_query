@@ -9,17 +9,23 @@ print(dataset_size_list)
 colors = ["red", "blue", "green", "black"]
 markers = ["o", "v", "s", "p"]
 
-squad_question_np = np.load("./csv/mrqa/clip_emb_SQuAD_question.npy")
-squad_context_np = np.load("./csv/mrqa/clip_emb_SQuAD_context.npy")
+squad_question_np = np.load("./synced_data/csv/mrqa/clip_emb_SQuAD_question.npy")
+squad_context_np = np.load("./synced_data/csv/mrqa/clip_emb_SQuAD_context.npy")
 squad_np = np.concatenate((squad_question_np, squad_context_np), axis=1)
-trivia_question_np = np.load("./csv/mrqa/clip_emb_TriviaQA-web_question.npy")
-trivia_context_np = np.load("./csv/mrqa/clip_emb_TriviaQA-web_context.npy")
+trivia_question_np = np.load(
+    "./synced_data/csv/mrqa/clip_emb_TriviaQA-web_question.npy"
+)
+trivia_context_np = np.load("./synced_data/csv/mrqa/clip_emb_TriviaQA-web_context.npy")
 trivia_np = np.concatenate((trivia_question_np, trivia_context_np), axis=1)
-natural_question_np = np.load("./csv/mrqa/clip_emb_NaturalQuestionsShort_question.npy")
-natural_context_np = np.load("./csv/mrqa/clip_emb_NaturalQuestionsShort_context.npy")
+natural_question_np = np.load(
+    "./synced_data/csv/mrqa/clip_emb_NaturalQuestionsShort_question.npy"
+)
+natural_context_np = np.load(
+    "./synced_data/csv/mrqa/clip_emb_NaturalQuestionsShort_context.npy"
+)
 natural_np = np.concatenate((natural_question_np, natural_context_np), axis=1)
-news_question_np = np.load("./csv/mrqa/clip_emb_NewsQA_question.npy")
-news_context_np = np.load("./csv/mrqa/clip_emb_NewsQA_context.npy")
+news_question_np = np.load("./synced_data/csv/mrqa/clip_emb_NewsQA_question.npy")
+news_context_np = np.load("./synced_data/csv/mrqa/clip_emb_NewsQA_context.npy")
 news_np = np.concatenate((news_question_np, news_context_np), axis=1)
 
 features = np.concatenate((squad_np, trivia_np, natural_np, news_np), axis=0)

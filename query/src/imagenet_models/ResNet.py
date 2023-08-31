@@ -80,10 +80,10 @@ df_validation = pd.DataFrame(
     validation_data,
     columns=["real_id", "real_label", "pred_id", "pred_label", "correctTF", "model"],
 )
-df_validation.to_csv("./csv/imagenet/resnet_df_validation.csv", index=False)
+df_validation.to_csv("./synced_data/csv/imagenet/resnet_df_validation.csv", index=False)
 
-df1k.to_csv("./csv/imagenet/resnet_df1k.csv", index=False)
-df1k_pred.to_csv("./csv/imagenet/resnet_df1k_pred.csv", index=False)
+df1k.to_csv("./synced_data/csv/imagenet/resnet_df1k.csv", index=False)
+df1k_pred.to_csv("./synced_data/csv/imagenet/resnet_df1k_pred.csv", index=False)
 
 print(df1k.iloc[[305, 658]])
 print(df1k_pred.iloc[[496]])

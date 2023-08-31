@@ -86,7 +86,7 @@ df_validation = pd.DataFrame(
     validation_data,
     columns=["real_id", "real_label", "pred_id", "pred_label", "correctTF", "model"],
 )
-df_validation.to_csv("./csv/ViT_df_validation.csv", index=False)
+df_validation.to_csv("./synced_data/csv/ViT_df_validation.csv", index=False)
 
-dfcifar.to_csv("./csv/ViT_df1k.csv", index=False)
-dfcifar_pred.to_csv("./csv/ViT_df1k_pred.csv", index=False)
+dfcifar.to_csv("./synced_data/csv/ViT_df1k.csv", index=False)
+dfcifar_pred.to_csv("./synced_data/csv/ViT_df1k_pred.csv", index=False)

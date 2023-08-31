@@ -23,7 +23,7 @@ dataset_size = (10507, 7785, 12836, 4212, 16980, 5901)
 dfs = {}
 for model in bandits.values():
     for dataset in datasets:
-        csv_path = f"./csv/mrqa/{dataset}_{model}_validation.csv"
+        csv_path = f"./synced_data/csv/mrqa/{dataset}_{model}_validation.csv"
         df = pd.read_csv(csv_path)
         dfs[(dataset, model)] = df
         print(dataset, model, df.shape)
@@ -49,5 +49,5 @@ for idx_ds, dataset in enumerate(datasets):
     exact_np = np.array(exact_np)
     print(f1_np.shape)
     print(exact_np.shape)
-    np.save(f"./csv/mrqa/{dataset}_f1.npy", f1_np)
-    np.save(f"./csv/mrqa/{dataset}_exact.npy", exact_np)
+    np.save(f"./synced_data/csv/mrqa/{dataset}_f1.npy", f1_np)
+    np.save(f"./synced_data/csv/mrqa/{dataset}_exact.npy", exact_np)

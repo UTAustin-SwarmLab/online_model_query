@@ -23,15 +23,15 @@ random_seed = 42
 np.random.seed(random_seed)
 
 ### load numpy arrays
-cifar_X = np.load("./csv/cifar100/clip_emb_cifar100.npy")
-imagenet_X = np.load("./csv/imagenet-1k/clip_emb_imagenet-1k.npy")
+cifar_X = np.load("./synced_data/csv/cifar100/clip_emb_cifar100.npy")
+imagenet_X = np.load("./synced_data/csv/imagenet-1k/clip_emb_imagenet-1k.npy")
 X = np.concatenate((cifar_X, imagenet_X), axis=0)
 arr = np.random.choice(np.arange(X.shape[0]), dataset_size, replace=True)
 print(arr)
 X = X[arr, :]
 
-cifar_y = np.load("./csv/cifar100/cifar100_val.npy")
-imagent_y = np.load("./csv/imagenet-1k/imagenet-1k_val.npy")
+cifar_y = np.load("./synced_data/csv/cifar100/cifar100_val.npy")
+imagent_y = np.load("./synced_data/csv/imagenet-1k/imagenet-1k_val.npy")
 y = np.concatenate((cifar_y, imagent_y), axis=0)
 y = y[arr, :]
 
@@ -42,7 +42,7 @@ print(y.shape)
 opt_ = y.max(axis=1)  # shape: (dataset_size, )
 opt_ = np.cumsum(opt_) / (np.arange(opt_.shape[0]) + 1)
 ### save optimal reward
-np.save(f"./cumulative_reward/OptimalReward_ds{dataset_size}.npy", opt_)
+np.save(f"./synced_data/cumulative_reward/OptimalReward_ds{dataset_size}.npy", opt_)
 
 nchoices = y.shape[1]
 base_algorithm = LogisticRegression(solver="lbfgs", max_iter=1000, warm_start=True)
@@ -147,20 +147,22 @@ for i in range(int(np.floor(X.shape[0] / batch_size))):
 
 ### save models
 with open(
-    f"./models/ucb_ds{dataset_size}_bs{batch_size}_per{percetile}.pkl", "wb"
+    f"./synced_data/models/ucb_ds{dataset_size}_bs{batch_size}_per{percetile}.pkl", "wb"
 ) as f:
     cloudpickle.dump(models[0], f)
 with open(
-    f"./models/egr_ds{dataset_size}_bs{batch_size}_per{percetile}.pkl", "wb"
+    f"./synced_data/models/egr_ds{dataset_size}_bs{batch_size}_per{percetile}.pkl", "wb"
 ) as f:
     cloudpickle.dump(models[1], f)
 with open(
-    f"./models/lucb_ds{dataset_size}_bs{batch_size}_per{percetile}.pkl", "wb"
+    f"./synced_data/models/lucb_ds{dataset_size}_bs{batch_size}_per{percetile}.pkl",
+    "wb",
 ) as f:
     cloudpickle.dump(models[2], f)
 
 with open(
-    f"./models/lst_actions_ds{dataset_size}_bs{batch_size}_per{percetile}.pkl", "wb"
+    f"./synced_data/models/lst_actions_ds{dataset_size}_bs{batch_size}_per{percetile}.pkl",
+    "wb",
 ) as f:
     cloudpickle.dump(lst_actions, f)
 
@@ -206,15 +208,15 @@ plt.plot(
 
 ### save cumulative reward
 np.save(
-    f"./cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}.npy",
+    f"./synced_data/cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}.npy",
     rewards_ucb,
 )
 np.save(
-    f"./cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percetile}.npy",
+    f"./synced_data/cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percetile}.npy",
     rewards_egr,
 )
 np.save(
-    f"./cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}.npy",
+    f"./synced_data/cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}.npy",
     rewards_lucb,
 )
 

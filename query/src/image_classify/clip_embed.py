@@ -30,9 +30,9 @@ max_episode_steps = 6000
 total_timesteps = max_episode_steps * 100
 
 if contextual:
-    model_path = f"./models/{env_name}_PPO.zip"
+    model_path = f"./synced_data/models/{env_name}_PPO.zip"
 else:
-    model_path = f"./models/{env_name}_PPO_non_contextual.zip"
+    model_path = f"./synced_data/models/{env_name}_PPO_non_contextual.zip"
 
 set_random_seed(42, using_cuda=device != "cpu")
 env = gym.make(
@@ -54,8 +54,8 @@ _, obs_list1, __ = env.test_sequential(
 ### save obs_list
 obs_list1 = np.array(obs_list1)
 print(obs_list1.shape)
-np.save("./csv/clip_emb_imagenet-1k.npy", obs_list1)
+np.save("./synced_data/csv/clip_emb_imagenet-1k.npy", obs_list1)
 
 # obs_list2 = np.array(obs_list2)
 # print(obs_list2.shape)
-# np.save(f"./csv/clip_emb_cifar100.npy", obs_list2)
+# np.save(f"./synced_data/csv/clip_emb_cifar100.npy", obs_list2)

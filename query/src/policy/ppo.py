@@ -35,9 +35,11 @@ total_timesteps = 50000
 n_steps = args.step  # 2048
 
 if contextual:
-    model_path = f"./models/{env_name}_step{n_steps}_PPO_img{args.return_image}.zip"
+    model_path = (
+        f"./synced_data/models/{env_name}_step{n_steps}_PPO_img{args.return_image}.zip"
+    )
 else:
-    model_path = f"./models/{env_name}_step{n_steps}_PPO_non_contextual_img{args.return_image}.zip"
+    model_path = f"./synced_data/models/{env_name}_step{n_steps}_PPO_non_contextual_img{args.return_image}.zip"
 
 set_random_seed(42, using_cuda=device != "cpu")
 if "ImageNet" in env_name:

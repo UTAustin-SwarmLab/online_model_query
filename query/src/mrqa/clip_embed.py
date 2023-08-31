@@ -77,12 +77,12 @@ for example in val_set:
 ### save lists
 q_list = np.array(q_list)
 print(q_list.shape)
-np.save(f"./csv/mrqa/clip_emb_{dataset}_question.npy", q_list)
+np.save(f"./synced_data/csv/mrqa/clip_emb_{dataset}_question.npy", q_list)
 
 c_list = np.array(c_list)
 print(c_list.shape)
-np.save(f"./csv/mrqa/clip_emb_{dataset}_context.npy", c_list)
+np.save(f"./synced_data/csv/mrqa/clip_emb_{dataset}_context.npy", c_list)
 
 a_list = np.array(a_list)
 print(a_list.shape)
-np.save(f"./csv/mrqa/clip_emb_{dataset}_answer.npy", a_list)
+np.save(f"./synced_data/csv/mrqa/clip_emb_{dataset}_answer.npy", a_list)

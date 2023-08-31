@@ -49,7 +49,7 @@ class ImageNet1kGymEnv(gym.Env):
         self.device = device
         self.reward_range = (0, 1)
         for idx, model in self.bandits.items():
-            csv_path = f"./csv/imagenet/{model}_df_validation.csv"
+            csv_path = f"./synced_data/csv/imagenet/{model}_df_validation.csv"
             self.model_result_df[idx] = pd.read_csv(csv_path)
 
         ### input is an image or an embedding

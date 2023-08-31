@@ -38,23 +38,29 @@ dataset_idx = [i for i in datasets.values()]
 
 ### load embeddings
 dataset_emb_list = []
-squad_question_np = np.load("./csv/mrqa/clip_emb_SQuAD_question.npy")
-squad_context_np = np.load("./csv/mrqa/clip_emb_SQuAD_context.npy")
+squad_question_np = np.load("./synced_data/csv/mrqa/clip_emb_SQuAD_question.npy")
+squad_context_np = np.load("./synced_data/csv/mrqa/clip_emb_SQuAD_context.npy")
 squad_np = np.concatenate((squad_question_np, squad_context_np), axis=1)
-trivia_question_np = np.load("./csv/mrqa/clip_emb_TriviaQA-web_question.npy")
-trivia_context_np = np.load("./csv/mrqa/clip_emb_TriviaQA-web_context.npy")
+trivia_question_np = np.load(
+    "./synced_data/csv/mrqa/clip_emb_TriviaQA-web_question.npy"
+)
+trivia_context_np = np.load("./synced_data/csv/mrqa/clip_emb_TriviaQA-web_context.npy")
 trivia_np = np.concatenate((trivia_question_np, trivia_context_np), axis=1)
-natural_question_np = np.load("./csv/mrqa/clip_emb_NaturalQuestionsShort_question.npy")
-natural_context_np = np.load("./csv/mrqa/clip_emb_NaturalQuestionsShort_context.npy")
+natural_question_np = np.load(
+    "./synced_data/csv/mrqa/clip_emb_NaturalQuestionsShort_question.npy"
+)
+natural_context_np = np.load(
+    "./synced_data/csv/mrqa/clip_emb_NaturalQuestionsShort_context.npy"
+)
 natural_np = np.concatenate((natural_question_np, natural_context_np), axis=1)
-news_question_np = np.load("./csv/mrqa/clip_emb_NewsQA_question.npy")
-news_context_np = np.load("./csv/mrqa/clip_emb_NewsQA_context.npy")
+news_question_np = np.load("./synced_data/csv/mrqa/clip_emb_NewsQA_question.npy")
+news_context_np = np.load("./synced_data/csv/mrqa/clip_emb_NewsQA_context.npy")
 news_np = np.concatenate((news_question_np, news_context_np), axis=1)
-search_question_np = np.load("./csv/mrqa/clip_emb_SearchQA_question.npy")
-search_context_np = np.load("./csv/mrqa/clip_emb_SearchQA_context.npy")
+search_question_np = np.load("./synced_data/csv/mrqa/clip_emb_SearchQA_question.npy")
+search_context_np = np.load("./synced_data/csv/mrqa/clip_emb_SearchQA_context.npy")
 search_np = np.concatenate((search_question_np, search_context_np), axis=1)
-hotpot_question_np = np.load("./csv/mrqa/clip_emb_HotpotQA_question.npy")
-hotpot_context_np = np.load("./csv/mrqa/clip_emb_HotpotQA_context.npy")
+hotpot_question_np = np.load("./synced_data/csv/mrqa/clip_emb_HotpotQA_question.npy")
+hotpot_context_np = np.load("./synced_data/csv/mrqa/clip_emb_HotpotQA_context.npy")
 hotpot_np = np.concatenate((hotpot_question_np, hotpot_context_np), axis=1)
 
 dataset_emb_list.append(squad_np)
@@ -76,12 +82,12 @@ X = X_complete[arr, :]
 
 # remove SQuAD
 dataset_y_list = []
-squad_exact_np = np.load("./csv/mrqa/SQuAD_exact.npy")
-trivia_exact_np = np.load("./csv/mrqa/TriviaQA-web_exact.npy")
-natural_exact_np = np.load("./csv/mrqa/NaturalQuestionsShort_exact.npy")
-news_exact_np = np.load("./csv/mrqa/NewsQA_exact.npy")
-search_exact_np = np.load("./csv/mrqa/SearchQA_exact.npy")
-hotpot_exact_np = np.load("./csv/mrqa/HotpotQA_exact.npy")
+squad_exact_np = np.load("./synced_data/csv/mrqa/SQuAD_exact.npy")
+trivia_exact_np = np.load("./synced_data/csv/mrqa/TriviaQA-web_exact.npy")
+natural_exact_np = np.load("./synced_data/csv/mrqa/NaturalQuestionsShort_exact.npy")
+news_exact_np = np.load("./synced_data/csv/mrqa/NewsQA_exact.npy")
+search_exact_np = np.load("./synced_data/csv/mrqa/SearchQA_exact.npy")
+hotpot_exact_np = np.load("./synced_data/csv/mrqa/HotpotQA_exact.npy")
 dataset_y_list.append(squad_exact_np)
 dataset_y_list.append(trivia_exact_np)
 dataset_y_list.append(natural_exact_np)
@@ -114,13 +120,13 @@ assert (
 
 ### load cumulative reward
 rewards_ucb = np.load(
-    f"./cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.npy"
+    f"./synced_data/cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.npy"
 )
 rewards_egr = np.load(
-    f"./cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.npy"
+    f"./synced_data/cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.npy"
 )
 rewards_lucb = np.load(
-    f"./cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.npy"
+    f"./synced_data/cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.npy"
 )
 
 ### calculate optimal reward
@@ -128,7 +134,7 @@ rewards_opt = np.array(int(y.shape[0] / batch_size) * [y.max(axis=1).mean()])
 print(rewards_opt.shape)
 
 ### load PPO reward
-ppo = pd.read_csv("./cumulative_reward/QAstep100_embed.csv")
+ppo = pd.read_csv("./synced_data/cumulative_reward/QAstep100_embed.csv")
 ### pandas to numpy
 rewards_ppo = ppo["Value"].to_numpy()[: rewards_opt.shape[0]]
 rewards_ppo /= batch_size**2

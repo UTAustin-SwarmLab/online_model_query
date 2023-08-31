@@ -8,25 +8,25 @@ batch_size = 100
 percetile = 95
 
 ### load numpy arrays
-cifar_X = np.load("./csv/cifar100/clip_emb_cifar100.npy")
-imagenet_X = np.load("./csv/imagenet-1k/clip_emb_imagenet-1k.npy")
+cifar_X = np.load("./synced_data/csv/cifar100/clip_emb_cifar100.npy")
+imagenet_X = np.load("./synced_data/csv/imagenet-1k/clip_emb_imagenet-1k.npy")
 X = np.concatenate((cifar_X, imagenet_X), axis=0)
 arr = np.random.choice(np.arange(X.shape[0]), dataset_size, replace=True)
 X = X[arr, :]
-cifar_y = np.load("./csv/cifar100/cifar100_val.npy")
-imagent_y = np.load("./csv/imagenet-1k/imagenet-1k_val.npy")
+cifar_y = np.load("./synced_data/csv/cifar100/cifar100_val.npy")
+imagent_y = np.load("./synced_data/csv/imagenet-1k/imagenet-1k_val.npy")
 y = np.concatenate((cifar_y, imagent_y), axis=0)
 y = y[arr, :]
 
 ### load cumulative reward
 rewards_ucb = np.load(
-    f"./cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}.npy"
+    f"./synced_data/cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}.npy"
 )
 rewards_egr = np.load(
-    f"./cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percetile}.npy"
+    f"./synced_data/cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percetile}.npy"
 )
 rewards_lucb = np.load(
-    f"./cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}.npy"
+    f"./synced_data/cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}.npy"
 )
 
 ### load optimal reward
@@ -36,13 +36,13 @@ opt_bandit = y.mean(axis=0).argmax()
 print("Optimal bandit: ", opt_bandit)
 
 ### load PPO reward
-ppo = pd.read_csv("./cumulative_reward/step100_embed.csv")
+ppo = pd.read_csv("./synced_data/cumulative_reward/step100_embed.csv")
 ### pandas to numpy
 rewards_ppo = ppo["Value"].to_numpy()[: rewards_opt.shape[0]]
 rewards_ppo /= batch_size
 
 ### load PPO reward
-ppo_img = pd.read_csv("./cumulative_reward/step100_img.csv")
+ppo_img = pd.read_csv("./synced_data/cumulative_reward/step100_img.csv")
 ### pandas to numpy
 rewards_ppo_img = ppo_img["Value"].to_numpy()[: rewards_opt.shape[0]]
 rewards_ppo_img /= batch_size
@@ -103,7 +103,7 @@ plt.plot(
     ls=":",
 )
 
-# import warnings
+# import warnings\
 box = ax.get_position()
 ax.set_position([box.x0, box.y0 + box.height * 0.1, box.width, box.height * 1.25])
 ax.legend(

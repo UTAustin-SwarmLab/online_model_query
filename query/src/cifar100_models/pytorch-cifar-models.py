@@ -119,10 +119,14 @@ df_validation = pd.DataFrame(
     columns=["real_id", "real_label", "pred_id", "pred_label", "correctTF", "model"],
 )
 df_validation.to_csv(
-    f'./csv/cifar100/{model_name.split("_", 1)[1]}_df_validation.csv', index=False
+    f'./synced_data/csv/cifar100/{model_name.split("_", 1)[1]}_df_validation.csv',
+    index=False,
 )
 
-dfcifar.to_csv(f'./csv/cifar100/{model_name.split("_", 1)[1]}_df1k.csv', index=False)
+dfcifar.to_csv(
+    f'./synced_data/csv/cifar100/{model_name.split("_", 1)[1]}_df1k.csv', index=False
+)
 dfcifar_pred.to_csv(
-    f'./csv/cifar100/{model_name.split("_", 1)[1]}_df1k_pred.csv', index=False
+    f'./synced_data/csv/cifar100/{model_name.split("_", 1)[1]}_df1k_pred.csv',
+    index=False,
 )

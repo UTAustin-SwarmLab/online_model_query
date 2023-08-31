@@ -123,7 +123,7 @@ df_validation = pd.DataFrame(
 )
 df_validation.set_index("idx")
 
-csv_dir = "./csv/mrqa/"
+csv_dir = "./synced_data/csv/mrqa/"
 os.makedirs(csv_dir, exist_ok=True)
 if "/" in model_name:
     model_name = model_name.split("/", 1)[1]
