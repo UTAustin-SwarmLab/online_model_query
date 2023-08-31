@@ -152,7 +152,7 @@ class ImageNet1kCIFAR100GymEnv(gym.Env):
                     self.imagenet_idx_seq[:-1],
                 )
 
-            np_image, label = (
+            np_image, _ = (
                 self.imagenet[idx]["image"],
                 self.imagenet[idx]["label"].item(),
             )
@@ -171,7 +171,7 @@ class ImageNet1kCIFAR100GymEnv(gym.Env):
                     int(self.cifar100_idx_seq[-1]),
                     self.cifar100_idx_seq[:-1],
                 )
-            np_image, label = (
+            np_image, _ = (
                 self.cifar100[idx]["img"],
                 self.cifar100[idx]["fine_label"].item(),
             )

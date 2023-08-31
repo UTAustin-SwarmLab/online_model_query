@@ -1,5 +1,4 @@
 ### tensorboard --logdir='./tensorboard_log/PPO_ImageNet1k' --port=6006
-### tensorboard --logdir='./tensorboard_log/PPO_step100_ImageNet1k_imgFalse/PPO_1' --port=6006
 ### python src/policy/ppo.py -e ImageNet1k_CIFAR100 -d 0 -c True -i True -n 100
 ### poetry run python query/src/policy/ppo.py -d 1 -e OpenBookQA -c True -n 100
 import argparse
@@ -39,7 +38,8 @@ if contextual:
         f"./synced_data/models/{env_name}_step{n_steps}_PPO_img{args.return_image}.zip"
     )
 else:
-    model_path = f"./synced_data/models/{env_name}_step{n_steps}_PPO_non_contextual_img{args.return_image}.zip"
+    model_path = f"./synced_data/models/{env_name}_step{n_steps}_\
+                    PPO_non_contextual_img{args.return_image}.zip"
 
 set_random_seed(42, using_cuda=device != "cpu")
 if "ImageNet" in env_name:

@@ -115,10 +115,6 @@ class ImageNet1kGymEnv(gym.Env):
         ### update next state
         self.state = idx  # update current idx
 
-        # if self.cnt % 1000 == 0:
-        # print("cnt: ", self.cnt, "current state: ", current_idx, "action: ", action, "next state: ", idx)
-        # print("new state: ", self.state, "reward: ", reward, "terminated: ", terminated, "truncated: ", truncated)
-
         return observation, reward, terminated, truncated, info
 
     def reset(

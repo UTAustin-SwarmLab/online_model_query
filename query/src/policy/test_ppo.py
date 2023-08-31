@@ -32,7 +32,8 @@ max_episode_steps = 6000
 total_timesteps = max_episode_steps * 100
 
 if contextual:
-    model_path = f"./synced_data/models/{env_name}_step{args.step}_PPO_img{args.return_image}.zip"
+    model_path = f"./synced_data/models/{env_name}_step{args.step}\
+                    _PPO_img{args.return_image}.zip"
 else:
     model_path = f"./synced_data/models/{env_name}_PPO_non_contextual.zip"
 
@@ -53,4 +54,5 @@ cumulative_reward, _, __ = env.test_sequential(
 cumulative_reward, _, __ = env.test_sequential(model, "cifar100")
 
 ### save cumulative reward
-# np.save(f"./synced_data/cumulative_reward/ImageNet1k_PPO_{max_episode_steps}_{total_timesteps}.npy", cumulative_reward)
+# np.save(f"./synced_data/cumulative_reward/ImageNet1k_PPO_{max_episode_steps}_\
+#           {total_timesteps}.npy", cumulative_reward)

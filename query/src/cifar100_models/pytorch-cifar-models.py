@@ -98,7 +98,6 @@ for i in range(inference_number):
         ]
     )
     if pred_label != label:  # wrong prediction
-        # print(f"Wrong prediction: {pred_label} {id_mapping[pred_label]} \t GT: {label} {id_mapping[label]}")
         dfcifar.loc[dfcifar["read_id"] == label, "pred_wrong"] += 1
         dfcifar_pred.loc[dfcifar_pred["pred_id"] == pred_label, "pred_wrong"] += 1
     else:  # correct prediction

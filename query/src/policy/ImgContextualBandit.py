@@ -85,7 +85,7 @@ rewards_ucb, rewards_egr, rewards_lucb = [list() for i in range(len(models))]
 
 lst_rewards = [rewards_ucb, rewards_egr, rewards_lucb]
 
-# initial seed - all policies start with the same small random selection of actions/rewards
+# initial seed-all policies start with the same small random selection of obs
 first_batch = X[:batch_size, :]
 np.random.seed(1)
 action_chosen = np.random.randint(nchoices, size=batch_size)
@@ -232,7 +232,6 @@ ax.legend(
 )
 
 plt.tick_params(axis="both", which="major", labelsize=25)
-# plt.xticks([i*batch_size for i in range(int(np.floor(X.shape[0] / batch_size)))], [i*batch_size for i in range(int(np.floor(X.shape[0] / batch_size)))])
 
 plt.xlabel(f"Rounds (models were updated every {batch_size} rounds)", size=30)
 plt.ylabel("Cumulative Mean Reward", size=30)
@@ -240,6 +239,6 @@ plt.title("Comparison of Online Contextual Bandit Policies)", size=30)
 plt.grid()
 # plt.show()
 plt.savefig(
-    f"./plot/BootstrappedUpperConfidenceBound_EpsilonGreedy_LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}.png",
+    f"./plot/ds{dataset_size}_bs{batch_size}_per{percetile}.png",
     bbox_inches="tight",
 )

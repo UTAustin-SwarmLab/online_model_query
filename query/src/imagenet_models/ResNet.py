@@ -8,12 +8,6 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 inference_number = 50000
 
 ### load model
-# dataset = load_dataset('imagenet-1k', split='validation', streaming=True, use_auth_token=True).shuffle(seed=42, buffer_size=1000)
-# dataset_head = dataset.take(10)
-# print(list(dataset_head))
-# dataset_head = list(dataset_head)
-# image = dataset_head[0]["image"]
-
 dataset = load_dataset(
     "imagenet-1k", split="validation", streaming=False, use_auth_token=True
 ).with_format("pt")
@@ -69,7 +63,6 @@ for i in range(inference_number):
         ]
     )
     if pred_label != label:  # wrong prediction
-        # print(f"Wrong prediction: {pred_label} {model.config.id2label[pred_label]} \t GT: {label} {model.config.id2label[label]}")
         df1k.loc[df1k["read_id"] == label, "pred_wrong"] += 1
         df1k_pred.loc[df1k_pred["pred_id"] == pred_label, "pred_wrong"] += 1
     else:  # correct prediction

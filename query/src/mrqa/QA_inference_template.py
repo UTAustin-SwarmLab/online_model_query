@@ -1,20 +1,16 @@
 ### modified from https://huggingface.co/docs/transformers/tasks/question_answering, https://huggingface.co/deepset/roberta-base-squad2
 ### Example of inference on SQuAD v2.0 dataset: https://github.com/huggingface/datasets/blob/main/metrics/squad_v2/squad_v2.py
-##### predictions = [{'prediction_text': '1976', 'id': '56e10a3be3433e1400422b22', 'no_answer_probability': 0.}]
-##### references = [{'answers': {'answer_start': [97], 'text': ['1976']}, 'id': '56e10a3be3433e1400422b22'}]
-##### squad_v2_metric = datasets.load_metric("squad_v2")
-##### results = squad_v2_metric.compute(predictions=predictions, references=references)
-##### print(results)
 
 ### Just disables the warning, doesn't take advantage of AVX/FMA to run faster
-### warning: To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+### warning: To enable the following instructions: AVX2 FMA, in other operations,
+### rebuild TensorFlow with the appropriate compiler flags.
 import os
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 import evaluate
 from datasets import load_dataset
 from transformers import pipeline
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 dataset_size = 100
 
@@ -46,19 +42,15 @@ pred_answer = [
     for i in range(len(outputs))
 ]
 groud_truth = [{"id": ex["id"], "answers": ex["answers"]} for ex in val_set]
-# print("pred_answer: ", pred_answer)
-# print("groud_truth: ", groud_truth)
-# print("model outputs: ", outputs)
-
-# metric.add(predictions=answer, references=answer) or batched metric.add_batch(references=refs, predictions=preds)
 
 ### evaluate metrics on the validation set https://huggingface.co/spaces/evaluate-metric/squad_v2
 """
-Expected format: {'predictions': {'id': Value(dtype='string', id=None), 'prediction_text': Value(dtype='string', id=None), 
+Expected format: {'predictions': {'id': Value(dtype='string', id=None), 
+                        'prediction_text': Value(dtype='string', id=None), 
                         'no_answer_probability': Value(dtype='float32', id=None)}, 
                 'references': {'id': Value(dtype='string', id=None), 
-                    'answers': Sequence(feature={'text': Value(dtype='string', id=None), 
-                    'answer_start': Value(dtype='int32', id=None)}, length=-1, id=None)}}
+                'answers': Sequence(feature={'text': Value(dtype='string', id=None), 
+                'answer_start': Value(dtype='int32', id=None)}, length=-1, id=None)}}
 """
 scores = metric.compute(predictions=pred_answer, references=groud_truth)
 print("scores: ", scores)

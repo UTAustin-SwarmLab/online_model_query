@@ -18,7 +18,6 @@ id_mapping = {int(k): v for k, v in id_mapping.items()}
 dataset = load_dataset(
     "cifar100", split="test", streaming=False, use_auth_token=True
 ).with_format("pt")
-# processor = ViTFeatureExtractor.from_pretrained('google/vit-base-patch16-224-in21k', device=device)
 processor = ViTImageProcessor.from_pretrained(
     "google/vit-base-patch16-224-in21k", device=device
 )
@@ -73,9 +72,6 @@ for i in range(inference_number):
         ]
     )
     if pred_label != label:  # wrong prediction
-        print(
-            f"Wrong prediction: {pred_label} {model.config.id2label[pred_label]} \t GT: {label} {model.config.id2label[label]}"
-        )
         dfcifar.loc[dfcifar["read_id"] == label, "pred_wrong"] += 1
         dfcifar_pred.loc[dfcifar_pred["pred_id"] == pred_label, "pred_wrong"] += 1
     else:  # correct prediction

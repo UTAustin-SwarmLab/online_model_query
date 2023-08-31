@@ -1,6 +1,8 @@
 ### use clip to get emneddings of the imagenet dataset
 ### use the embeddings to plot a t-SNE plot
 # from transformers import CLIPProcessor, CLIPModel
+import random
+
 import clip
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,9 +31,6 @@ for id in range(0, 1000, modulo):
     labels.append((id, model_hf.config.id2label[id].split(",")[0]))
 print("labels: ", labels)
 print("num of labels: ", len(labels), "num of data: ", len(dataset))
-
-### randomly select 10 colors
-import random
 
 random.seed(0)
 colors = []
@@ -81,7 +80,7 @@ ax = fig.add_subplot(111)
 # for every class, we'll add a scatter plot separately
 for i, (label_id, label_text) in enumerate(labels):
     # find the samples of the current class in the data
-    indices = [i for i, l in enumerate(data_label) if l == label_id]
+    indices = [i for i, label in enumerate(data_label) if label == label_id]
     # extract the coordinates of the points of this class only
     current_tx = np.take(tx, indices)
     current_ty = np.take(ty, indices)

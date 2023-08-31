@@ -67,7 +67,6 @@ for i in range(inference_number):
         ]
     )
     if pred_label != label:  # wrong prediction
-        # print(f"Wrong prediction: {pred_label} {model.config.id2label[pred_label]} \t GT: {label} {model.config.id2label[label]}")
         df1k.loc[df1k["read_id"] == label, "pred_wrong"] += 1
         df1k_pred.loc[df1k_pred["pred_id"] == pred_label, "pred_wrong"] += 1
     else:  # correct prediction

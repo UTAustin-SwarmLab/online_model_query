@@ -115,7 +115,6 @@ ax.legend(
 )
 
 plt.tick_params(axis="both", which="major", labelsize=25)
-# plt.xticks([i*batch_size for i in range(int(np.floor(X.shape[0] / batch_size)))], [i*batch_size for i in range(int(np.floor(X.shape[0] / batch_size)))])
 
 plt.xlabel(f"Rounds (models were updated every {batch_size} rounds)", size=25)
 plt.ylabel("Cumulative Mean Reward", size=25)
