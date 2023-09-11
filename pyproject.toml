@@ -36,6 +36,8 @@ sentencepiece = "^0.1.99"
 jupyter = "^1.0.0"
 openai = "^0.28.0"
 ipykernel = "^6.25.2"
+plotly = "^5.16.1"
+gdown = "^4.7.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"
