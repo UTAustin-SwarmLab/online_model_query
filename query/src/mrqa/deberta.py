@@ -20,7 +20,7 @@ parser.add_argument(
     default="NaturalQuestionsShort",
 )
 parser.add_argument(
-    "-nm",
+    "-mn",
     "--modelname",
     type=str,
     help="name of pre-trained model",

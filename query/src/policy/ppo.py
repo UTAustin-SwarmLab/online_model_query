@@ -53,14 +53,16 @@ if "ImageNet" in env_name:
     )
     log_path = f"./tensorboard_log/PPO_step{n_steps}_ImageNet1k_img{args.return_image}/"
 elif "QA" in env_name:
+    answer = True
     print(env_name + "-v1")
     env = gym.make(
         env_name + "-v1",
         max_episode_steps=max_episode_steps,
         device=device,
         contextual=contextual,
+        answer=answer,
     )
-    log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenBookQA/"
+    log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenBookQA_{answer}/"
 
 ### load and then train model if it exists
 policy = "MlpPolicy" if not args.return_image else "CnnPolicy"
