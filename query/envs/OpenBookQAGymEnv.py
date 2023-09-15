@@ -46,7 +46,7 @@ class OpenBookQAGymEnv(gym.Env):
         """
         Args:
             emb_size: size of the embedding
-            answer: whether to use the answer as part of the observation
+            answer: whether to use the local model's answer as part of the observation
             device: device to run the clip model
             contextual: whether to use contextual bandit
             exact_match: whether to use exact match or f1 score
@@ -68,6 +68,7 @@ class OpenBookQAGymEnv(gym.Env):
         else:
             self.emb_size = emb_size * 3  # question, context*2
 
+        self.local_model_name = "distilbert-base-uncased-distilled-squad"
         self.reward_range = (0, 1)
         self.cnt = 0
 
@@ -120,6 +121,9 @@ class OpenBookQAGymEnv(gym.Env):
         self.squad_answer_np = np.load(
             "./synced_data/csv/mrqa/clip_emb_SQuAD_answer.npy"
         )
+        self.squad_model_answer_np = np.load(
+            f"./synced_data/csv/mrqa/clip_emb_{self.local_model_name}_SQuAD_predanswer.npy"
+        )
         self.trivia_question_np = np.load(
             "./synced_data/csv/mrqa/clip_emb_TriviaQA-web_question.npy"
         )
@@ -128,6 +132,9 @@ class OpenBookQAGymEnv(gym.Env):
         )
         self.trivia_answer_np = np.load(
             "./synced_data/csv/mrqa/clip_emb_TriviaQA-web_answer.npy"
+        )
+        self.trivia_model_answer_np = np.load(
+            f"./synced_data/csv/mrqa/clip_emb_{self.local_model_name}_TriviaQA-web_predanswer.npy"
         )
         self.natural_question_np = np.load(
             "./synced_data/csv/mrqa/clip_emb_NaturalQuestionsShort_question.npy"
@@ -138,6 +145,9 @@ class OpenBookQAGymEnv(gym.Env):
         self.natural_answer_np = np.load(
             "./synced_data/csv/mrqa/clip_emb_NaturalQuestionsShort_answer.npy"
         )
+        self.natural_model_answer_np = np.load(
+            f"./synced_data/csv/mrqa/clip_emb_{self.local_model_name}_NaturalQuestionsShort_predanswer.npy"
+        )
         self.news_question_np = np.load(
             "./synced_data/csv/mrqa/clip_emb_NewsQA_question.npy"
         )
@@ -146,6 +156,9 @@ class OpenBookQAGymEnv(gym.Env):
         )
         self.news_answer_np = np.load(
             "./synced_data/csv/mrqa/clip_emb_NewsQA_answer.npy"
+        )
+        self.news_model_answer_np = np.load(
+            f"./synced_data/csv/mrqa/clip_emb_{self.local_model_name}_NewsQA_predanswer.npy"
         )
         self.search_question_np = np.load(
             "./synced_data/csv/mrqa/clip_emb_SearchQA_question.npy"
@@ -156,6 +169,9 @@ class OpenBookQAGymEnv(gym.Env):
         self.search_answer_np = np.load(
             "./synced_data/csv/mrqa/clip_emb_SearchQA_answer.npy"
         )
+        self.search_model_answer_np = np.load(
+            f"./synced_data/csv/mrqa/clip_emb_{self.local_model_name}_SearchQA_predanswer.npy"
+        )
         self.hotpot_question_np = np.load(
             "./synced_data/csv/mrqa/clip_emb_HotpotQA_question.npy"
         )
@@ -164,6 +180,9 @@ class OpenBookQAGymEnv(gym.Env):
         )
         self.hotpot_answer_np = np.load(
             "./synced_data/csv/mrqa/clip_emb_HotpotQA_answer.npy"
+        )
+        self.hotpot_model_answer_np = np.load(
+            f"./synced_data/csv/mrqa/clip_emb_{self.local_model_name}_HotpotQA_predanswer.npy"
         )
 
     def step(
@@ -196,8 +215,7 @@ class OpenBookQAGymEnv(gym.Env):
                 if next_idx < dataset_cumsum[idx]:
                     next_dataset = dataset
                     if idx > 0:
-                        pre_idx = idx - 1
-                        ds_idx = next_idx - dataset_cumsum[pre_idx]
+                        ds_idx = next_idx - dataset_cumsum[idx - 1]
                     else:
                         ds_idx = next_idx
                     break
@@ -208,40 +226,47 @@ class OpenBookQAGymEnv(gym.Env):
             if next_dataset == "SQuAD":
                 question_emb = self.squad_question_np[ds_idx, :]
                 context_emb = self.squad_context_np[ds_idx, :]
+                model_answer_emb = self.squad_model_answer_np[ds_idx, :]
                 # self.squad_answer_np[ds_idx, :]
             elif next_dataset == "TriviaQA-web":
                 question_emb = self.trivia_question_np[ds_idx, :]
                 context_emb = self.trivia_context_np[ds_idx, :]
+                model_answer_emb = self.trivia_model_answer_np[ds_idx, :]
                 # self.trivia_answer_np[ds_idx, :]
             elif next_dataset == "NaturalQuestionsShort":
                 question_emb = self.natural_question_np[ds_idx, :]
                 context_emb = self.natural_context_np[ds_idx, :]
+                model_answer_emb = self.natural_model_answer_np[ds_idx, :]
                 # self.natural_answer_np[ds_idx, :]
             elif next_dataset == "NewsQA":
                 question_emb = self.news_question_np[ds_idx, :]
                 context_emb = self.news_context_np[ds_idx, :]
+                model_answer_emb = self.news_model_answer_np[ds_idx, :]
                 # self.news_answer_np[ds_idx, :]
             elif next_dataset == "SearchQA":
                 question_emb = self.search_question_np[ds_idx, :]
                 context_emb = self.search_context_np[ds_idx, :]
+                model_answer_emb = self.search_model_answer_np[ds_idx, :]
                 # self.search_answer_np[ds_idx, :]
             elif next_dataset == "HotpotQA":
                 question_emb = self.hotpot_question_np[ds_idx, :]
                 context_emb = self.hotpot_context_np[ds_idx, :]
+                model_answer_emb = self.hotpot_model_answer_np[ds_idx, :]
                 # self.hotpot_answer_np[ds_idx, :]
             else:
                 raise NotImplementedError
             if self.answer:
-                # raise NotImplementedError
-                i = 0
-                for idx, dataset in enumerate(datasets.keys()):
-                    if next_dataset == dataset:
-                        i = idx
-                        break
-                observation = np.ones((self.emb_size,), dtype="float32") * i
-                # print(next_dataset, i, observation)
-                # print(next_idx, ds_idx)
-                # input()
+                # i = 0
+                # for idx, dataset in enumerate(datasets.keys()):
+                #     if next_dataset == dataset:
+                #         i = idx
+                #         break
+                # observation = np.ones((self.emb_size,), dtype="float32") * i
+                observation = np.concatenate(
+                    (question_emb, context_emb, model_answer_emb),
+                    axis=0,
+                    dtype="float32",
+                )
             else:
                 observation = np.concatenate(
                     (question_emb, context_emb), axis=0, dtype="float32"
@@ -283,8 +308,8 @@ class OpenBookQAGymEnv(gym.Env):
 # test emv with main function
 if __name__ == "__main__":
     # Create the Gym environment
-    env = OpenBookQAGymEnv()
-    random = False
+    env = OpenBookQAGymEnv(answer=True, contextual=True, exact_match=True)
+    random = True
     # Reset the environment
     obs, info = env.reset()
     # Perform action loop
@@ -302,18 +327,38 @@ if __name__ == "__main__":
                 print(obs)
                 print(reward, terminated, truncated, info)
     else:
-        _ = [0, 0]
-        while not (terminated or truncated):
-            cnt += 1
-            obs_ = obs
-            action = 0 if np.sum(obs) <= 200 else 1
-            obs, reward, terminated, truncated, info = env.step(action)
-            total_reward += reward
-            _[action] += 1
-            if cnt % 100 == 0:
-                print(cnt)
-                print(np.sum(obs_), action)
-                print("Mean reward:", total_reward / cnt)
-                print("Action list:", _)
+        # _ = [0, 0]
+        # while not (terminated or truncated):
+        #     cnt += 1
+        #     obs_ = obs
+        #     action = 0 if np.sum(obs) <= 200 else 1
+        #     obs, reward, terminated, truncated, info = env.step(action)
+        #     total_reward += reward
+        #     _[action] += 1
+        #     if cnt % 100 == 0:
+        #         print(cnt)
+        #         print(np.sum(obs_), action)
+        #         print("Mean reward:", total_reward / cnt)
+        #         print("Action list:", _)
+
+        ### test trained model
+        import torch
+        from stable_baselines3 import PPO
+
+        device = "cpu"
+        policy = "MlpPolicy"
+        model = PPO.load(
+            "synced_data/models/OpenBookQA_step100_PPO_imgFalse.zip",
+            env=env,
+            device=device,
+        )
+        idx_a_list = []
+        obs, info = env.reset(_idx=0)
+        for idx in range(1, dataset_cumsum[-1]):
+            if idx % 1000 == 0:
+                print(idx)
+            action, _ = model.predict(obs)
+            obs, reward, terminated, truncated, info = env.step(action, _idx=idx)
+            idx_a_list.append((idx, action))
 
     env.close()
