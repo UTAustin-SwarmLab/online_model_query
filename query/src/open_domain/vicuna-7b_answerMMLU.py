@@ -1,7 +1,11 @@
 # Use a pipeline as a high-level helper
+import warnings
+
+import pandas as pd
 import torch
 from transformers import AutoTokenizer, pipeline
 
+warnings.filterwarnings("ignore")
 model = "lmsys/vicuna-7b-v1.5"  # "meta-llama/Llama-2-13b-chat-hf"
 # device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -16,24 +20,35 @@ gen_pipeline = pipeline(
     # device=device,
 )
 
-print(gen_pipeline.device)
-input("Press Enter to continue...")
+### load the mmlu csv file
 
-question = "Question: Cities control the amount of pollution that is allowed to come from cars. How does this most likely help people? Answer:"
+mmlu_data = pd.read_csv("./synced_data/csv/mmlu/" + "vicuna-7b-v1.5" + ".csv")
+mmlu_quest_ans = pd.DataFrame(columns=["example", "choices", "answer"])
+for idx, row in mmlu_data.iterrows():
+    if idx % 500 == 0:
+        print(idx)
+    question = row["example"] + " Answer in short: "
 
-sequences = gen_pipeline(
-    question,
-    do_sample=True,
-    top_k=10,
-    num_return_sequences=1,
-    eos_token_id=tokenizer.eos_token_id,
-    max_length=200,
+    sequences = gen_pipeline(
+        question,
+        do_sample=True,
+        top_k=10,
+        num_return_sequences=1,
+        eos_token_id=tokenizer.eos_token_id,
+        max_length=200,
+    )
+
+    answer = sequences[0]["generated_text"].split(question)[1].strip()
+
+    mmlu_quest_ans.loc[len(mmlu_quest_ans)] = {
+        "example": row["example"],
+        "answer": answer,
+        "choices": row["choices"],
+    }
+
+mmlu_quest_ans.to_csv(
+    "./synced_data/csv/mmlu/vicuna-7b-v1.5_quest_ans.csv", index=False
 )
-
-for seq in sequences:
-    print(f"Result: {seq['generated_text']}")
-    answer = seq["generated_text"].split(question)[1]
-    print(answer)
 
 """
 Result: Question: Cities control the amount of pollution that is allowed to come from cars. How does this most likely help people? 
