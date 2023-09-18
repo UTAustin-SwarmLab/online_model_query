@@ -1,3 +1,4 @@
+### This file is used to register the environments in gym
 from gymnasium.envs.registration import register
 
 register(
@@ -22,4 +23,10 @@ register(
     id="OpenBookQA-v1",
     max_episode_steps=1e5,
     entry_point="query.envs.OpenBookQAGymEnv:OpenBookQAGymEnv",
+)
+
+register(
+    id="OpenDomain-v1",
+    max_episode_steps=1e5,
+    entry_point="query.envs.OpenDomainGymEnv:OpenDomainGymEnv",
 )

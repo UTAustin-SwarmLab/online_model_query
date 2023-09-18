@@ -35,9 +35,7 @@ nltk.download("punkt")
 
 dataset = args.dataset
 batch_size = 128
-device = (
-    f"cuda:{args.device}" if torch.cuda.is_available() and args.device >= 0 else "cpu"
-)
+device = f"cuda:{args.device}" if torch.cuda.is_available() and args.device >= 0 else "cpu"
 csv_dir = "./synced_data/csv/mrqa/"
 model_name = args.modelname
 # VMware/deberta-v3-base-mrqa, deepset/deberta-v3-base-squad2, google/bigbird-base-trivia-itc
@@ -73,6 +71,4 @@ for idx, row in df.iterrows():
 ### save lists
 a_list = np.array(a_list)
 print(a_list.shape)
-np.save(
-    f"./synced_data/csv/mrqa/clip_emb_{model_name}_{dataset}_predanswer.npy", a_list
-)
+np.save(f"./synced_data/csv/mrqa/clip_emb_{model_name}_{dataset}_predanswer.npy", a_list)

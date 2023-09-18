@@ -1,4 +1,6 @@
+### ImageNet1kCIFAR100GymEnv class for gym 
 import random
+from typing import Tuple
 
 import clip
 import gymnasium as gym
@@ -110,7 +112,19 @@ class ImageNet1kCIFAR100GymEnv(gym.Env):
 
     def step(
         self, action: int, _idx: int = None, _dataset: str = None
-    ) -> tuple(np.ndarray, float, bool, bool, dict):
+    ) -> Tuple[np.ndarray, float, bool, bool, dict]:
+        '''
+        Args:
+            action: index of the action
+            _idx: index of the next observation
+            _dataset: name of the next dataset
+        Returns:
+            observation: next observation
+            reward: reward
+            terminated: whether the episode is terminated
+            truncated: whether the episode is truncated
+            info: info
+        '''
         info = {}
         ### nothing is sequential here
         ### calculate reward
@@ -232,7 +246,16 @@ class ImageNet1kCIFAR100GymEnv(gym.Env):
         _idx: int = None,
         _dataset: str = None,
         **kwargs,
-    ) -> tuple(np.ndarray, dict):
+    ) -> Tuple[np.ndarray, dict]:
+        '''
+        Args:
+            seed: random seed
+            _idx: index of the next observation
+            _dataset: name of the next dataset
+        Returns:
+            observation: next observation
+            info: info
+        '''
         super().reset(seed=seed, **kwargs)
         info = {}
         self.cnt = 0
@@ -243,7 +266,16 @@ class ImageNet1kCIFAR100GymEnv(gym.Env):
 
         return observation, info
 
-    def test_sequential(self, model, dataset: str) -> tuple(np.ndarray, list, dict):
+    def test_sequential(self, model, dataset: str) -> Tuple[np.ndarray, list, dict]:
+        '''
+        Args:
+            model: model to test
+            dataset: dataset to test
+        Returns:
+            cumulative_reward: cumulative reward
+            obs_list: list of observations
+            action_list: list of actions
+        '''
         cumulative_reward = []
         obs_list = []
         action_list = {model_name: 0 for model_name in self.bandits.values()}
@@ -287,6 +319,13 @@ class ImageNet1kCIFAR100GymEnvNp(gym.Env):
     def __init__(
         self, n_bandits=8, emb_size=512, contextual=True, replace_sample=False, **kwargs
     ):
+        """
+        Args:
+            n_bandits: number of arms of the bandit
+            emb_size: size of the embedding
+            contextual: whether to use contextual bandit
+            replace_sample: whether to replace the sample
+        """
         super(ImageNet1kCIFAR100GymEnvNp, self).__init__()
 
         ### Define action and observation space with discrete actions:
@@ -316,7 +355,18 @@ class ImageNet1kCIFAR100GymEnvNp(gym.Env):
             -np.inf, np.inf, shape=(emb_size,), dtype="float32"
         )
 
-    def step(self, action: int):
+    def step(self, action: int)-> Tuple[np.ndarray, float, bool, bool, dict]:
+        '''
+        Args:
+            action: index of the action
+        Returns:
+            observation: next observation
+            reward: reward
+            terminated: whether the episode is terminated
+            truncated: whether the episode is truncated
+            info: info
+        ''' 
+
         info = {}
         ### nothing is sequential here
         ### calculate reward
@@ -350,7 +400,14 @@ class ImageNet1kCIFAR100GymEnvNp(gym.Env):
         self,
         seed=None,
         **kwargs,
-    ):
+    )-> Tuple[np.ndarray, dict]:
+        '''
+        Args:
+            seed: random seed
+        Returns:
+            observation: next observation
+            info: info
+        '''
         super().reset(seed=seed, **kwargs)
         np.random.seed(seed)
         cifar_X = np.load("./synced_data/csv/clip_emb_cifar100.npy")

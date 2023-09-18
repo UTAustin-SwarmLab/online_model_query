@@ -1,9 +1,14 @@
 import os
+
 import pandas as pd
 from datasets import load_dataset
-pd.options.display.float_format = '{:.2f}'.format
 
-models = ["gpt-4", "gpt-3.5-turbo"] # "claude-v1"] #, "claude-instant-v1"] #, "guanaco-33b"]
+pd.options.display.float_format = "{:.2f}".format
+
+models = [
+    "gpt-4",
+    "gpt-3.5-turbo",
+]  # "claude-v1"] #, "claude-instant-v1"] #, "guanaco-33b"]
 
 ### check if file exists
 tmp_file_path = "./synced_data/tmp.json"
@@ -25,7 +30,7 @@ for idx, battle in battles.iterrows():
         content = conver["content"]
         role = conver["role"]
         if role == "user":
-            content = content.replace("\"", "")
+            content = content.replace('"', "")
             content = content.replace("\n", "")
             content = content.replace("\r", "")
             content = content.replace("\t", "")
@@ -35,7 +40,7 @@ for idx, battle in battles.iterrows():
         content = conver["content"]
         role = conver["role"]
         if role == "user":
-            content = content.replace("\"", "")
+            content = content.replace('"', "")
             content = content.replace("\n", "")
             content = content.replace("\r", "")
             content = content.replace("\t", "")
@@ -60,20 +65,14 @@ for idx, battle in battles.iterrows():
         human_prefer.append(winner_model)
     else:
         print(winner_ab)
-    
-    data_row.append([q, winner_model, battle["model_a"], battle["model_b"]])
 
-# print(len(questions))
-# print(questions[0:5])
-# print(len(human_prefer))
-# print(human_prefer[0:5])
-# print(set(human_prefer))
+    data_row.append([q, winner_model, battle["model_a"], battle["model_b"]])
 
 ### save to csv
 df = pd.DataFrame(data_row, columns=["question", "human_prefer", "model_a", "model_b"])
 df.to_csv(csv_file_path, index=False, header=True, sep="|")
 
-df = df[df['model_a'].isin(models) & df['model_b'].isin(models)]
+df = df[df["model_a"].isin(models) & df["model_b"].isin(models)]
 
 print("Size of dataset after filtering by the models: ", len(df))
 print(df.head())
@@ -84,12 +83,14 @@ print("Count of question: ", len(set(df["question"])))
 ### pivot the dataframe
 qa_with_models = {}
 for idx, row in df.iterrows():
-    # print(row)
-    # print(row["question"])
     if row["question"] not in qa_with_models:
-        qa_with_models[row["question"]] = [[row["human_prefer"], row["model_a"], row["model_b"]]]
+        qa_with_models[row["question"]] = [
+            [row["human_prefer"], row["model_a"], row["model_b"]]
+        ]
     else:
-        qa_with_models[row["question"]].append([row["human_prefer"], row["model_a"], row["model_b"]])
+        qa_with_models[row["question"]].append(
+            [row["human_prefer"], row["model_a"], row["model_b"]]
+        )
 
 print("Questions containing the models: ", len(qa_with_models))
 

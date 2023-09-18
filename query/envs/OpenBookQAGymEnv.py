@@ -68,6 +68,7 @@ class OpenBookQAGymEnv(gym.Env):
         else:
             self.emb_size = emb_size * 3  # question, context*2
 
+        self.replace_sample = replace_sample
         self.local_model_name = "distilbert-base-uncased-distilled-squad"
         self.reward_range = (0, 1)
         self.cnt = 0
@@ -77,8 +78,7 @@ class OpenBookQAGymEnv(gym.Env):
             -np.inf, np.inf, shape=(self.emb_size,), dtype="float32"
         )
 
-        self.replace_sample = replace_sample
-        ### load numpy arrays
+        ### load arm results arrays
         if exact_match:
             em = []
             for dataset in datasets.keys():
@@ -102,7 +102,7 @@ class OpenBookQAGymEnv(gym.Env):
         self.shuffle_idx = np.random.choice(
             np.arange(self.num_samples), self.num_samples, replace=self.replace_sample
         )
-        # self.arm_results = self.arm_results[self.shuffle_idx, :]  #################
+
         ### remove models
         model_idx = [i for i in bandits.keys()]
         self.arm_results = self.arm_results[:, model_idx]
@@ -188,6 +188,18 @@ class OpenBookQAGymEnv(gym.Env):
     def step(
         self, action: int, _idx: int = None, _dataset: str = None
     ) -> Tuple[np.ndarray, float, bool, bool, dict]:
+        """
+        Args:
+            action: (int) the action that the agent took
+            _idx: (int) the index of the next observation
+            _dataset: (str) the dataset to use
+        Returns:
+            observation: (np.ndarray) the observation of the next step
+            reward: (float) the reward from the action
+            terminated: (bool) whether the episode is terminated
+            truncated: (bool) whether the episode is truncated
+            info: (dict) additional information
+        """
         info = {}
 
         ### nothing is sequential here
@@ -294,6 +306,15 @@ class OpenBookQAGymEnv(gym.Env):
         _dataset: str = None,
         **kwargs,
     ) -> Tuple[np.ndarray, dict]:
+        """
+        Args:
+            seed: random seed
+            _idx: (int) the index of the next observation
+            _dataset: (str) the dataset to use
+        Returns:
+            observation: (np.ndarray) the observation of the next step
+            info: (dict) additional information
+        """
         super().reset(seed=seed, **kwargs)
 
         info = {}
@@ -327,20 +348,6 @@ if __name__ == "__main__":
                 print(obs)
                 print(reward, terminated, truncated, info)
     else:
-        # _ = [0, 0]
-        # while not (terminated or truncated):
-        #     cnt += 1
-        #     obs_ = obs
-        #     action = 0 if np.sum(obs) <= 200 else 1
-        #     obs, reward, terminated, truncated, info = env.step(action)
-        #     total_reward += reward
-        #     _[action] += 1
-        #     if cnt % 100 == 0:
-        #         print(cnt)
-        #         print(np.sum(obs_), action)
-        #         print("Mean reward:", total_reward / cnt)
-        #         print("Action list:", _)
-
         ### test trained model
         import torch
         from stable_baselines3 import PPO

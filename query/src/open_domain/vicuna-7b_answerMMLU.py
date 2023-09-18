@@ -1,4 +1,4 @@
-# Use a pipeline as a high-level helper
+### This script is used to generate answers for MMLU questions
 import warnings
 
 import pandas as pd
@@ -46,12 +46,11 @@ for idx, row in mmlu_data.iterrows():
         "choices": row["choices"],
     }
 
-mmlu_quest_ans.to_csv(
-    "./synced_data/csv/mmlu/vicuna-7b-v1.5_quest_ans.csv", index=False
-)
+mmlu_quest_ans.to_csv("./synced_data/csv/mmlu/vicuna-7b-v1.5_quest_ans.csv", index=False)
 
 """
-Result: Question: Cities control the amount of pollution that is allowed to come from cars. How does this most likely help people? 
-Answer: This helps people by reducing the amount of pollution that is released into the air, which can improve air quality and reduce the negative health effects associated with exposure to pollution. 
-Additionally, reducing pollution from cars can also help to mitigate the effects of climate change by reducing greenhouse gas emissions.
+Result: Question: Cities control the amount of pollution that is allowed to come from cars. How does this most likely 
+help people? Answer: This helps people by reducing the amount of pollution that is released into the air, which can 
+improve air quality and reduce the negative health effects associated with exposure to pollution. Additionally, reducing
+pollution from cars can also help to mitigate the effects of climate change by reducing greenhouse gas emissions.
 """

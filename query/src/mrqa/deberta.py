@@ -59,19 +59,15 @@ idx = 0
 for outputs in question_answerer(
     question=val_set["question"], context=val_set["context"], batch_size=batch_size
 ):
-    ### output: {'score': 0.9997267127037048, 'start': 158, 'end': 166, 'answer': ' France.'}
-
     if idx % 200 == 0:
         print(idx)
 
-    ### Get predictions
+    ### get predictions
     ### takes question and context as input
     id = val_set["qid"][idx]
     pred_text = outputs["answer"]
     score = outputs["score"]
     gold_answer_set = "&".join(val_set["detected_answers"][idx]["text"])
-    # HasAns = False if len(val_set['answers'][idx]['answer_start']) == 0 else True
-    # print("gold_answer_set: ", gold_answer_set)
 
     pred_answer = [
         {"id": id, "prediction_text": pred_text, "no_answer_probability": score}
@@ -90,8 +86,6 @@ for outputs in question_answerer(
 
     ### evaluate metrics on the validation set
     eval_score = metric.compute(predictions=pred_answer, references=groud_truth)
-    # print("pred_answer: ", pred_answer, "groud_truth: ", groud_truth)
-    # print("eval_score: ", eval_score)
 
     validation_data.append(
         [

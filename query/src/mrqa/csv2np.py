@@ -1,4 +1,4 @@
-### convert csv files to np arrays
+### convert arm results: csv files to np arrays
 import numpy as np
 import pandas as pd
 

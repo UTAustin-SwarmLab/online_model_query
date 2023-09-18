@@ -1,4 +1,5 @@
 import random
+from typing import Tuple
 
 import clip
 import gymnasium as gym
@@ -28,6 +29,17 @@ class ImageNet1kGymEnv(gym.Env):
         contextual=True,
         **kwargs,
     ):
+        """
+        Args:
+            n_bandits: number of bandits
+            h: height of the image
+            w: width of the image
+            c: channel of the image
+            emb_size: size of the embedding
+            device: device to run the clip model
+            return_image: whether to return image or embedding
+            contextual: whether to use contextual bandit
+        """
         super(ImageNet1kGymEnv, self).__init__()
         ### Define action and observation space with discrete actions:
         self.action_space = spaces.Discrete(n_bandits)
@@ -69,7 +81,18 @@ class ImageNet1kGymEnv(gym.Env):
             "imagenet-1k", split="validation", streaming=False, use_auth_token=True
         ).with_format("numpy")
 
-    def step(self, action: int, _idx: int = None):
+    def step(self, action: int, _idx: int = None)-> Tuple[np.ndarray, float, bool, bool, dict]:
+        '''
+        Args:
+            action: index of the model
+            _idx: index of the image
+        Returns:
+            observation: embedding of the image
+            reward: 1 if correct, 0 if incorrect
+            terminated: whether the episode is terminated
+            truncated: whether the episode is truncated
+            info: additional information
+        '''
         info = {}
         ### nothing is sequential here
         ### calculate reward
@@ -122,7 +145,15 @@ class ImageNet1kGymEnv(gym.Env):
         seed=None,
         _idx=None,
         **kwargs,
-    ):
+    )-> Tuple[np.ndarray, dict]:
+        """
+        Args:
+            seed: random seed
+            _idx: index of the image
+        Returns:
+            observation: embedding of the image
+            info: additional information
+        """
         super().reset(seed=seed, **kwargs)
         info = {}
         ### calculate the 1st observation
@@ -157,7 +188,14 @@ class ImageNet1kGymEnv(gym.Env):
 
         return observation, info
 
-    def test_sequential(self, model, dataset="imagenet"):
+    def test_sequential(self, model, dataset="imagenet")-> np.ndarray:
+        """
+        Args:
+            model: model to test
+            dataset: dataset to test
+        Returns:
+            cumulative_reward: cumulative reward
+        """
         cumulative_reward = []
         action_list = {model_name: 0 for model_name in self.bandits.values()}
         for i in range(val_set_size):

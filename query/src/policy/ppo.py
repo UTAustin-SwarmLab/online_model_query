@@ -1,6 +1,7 @@
 ### tensorboard --logdir='./tensorboard_log/PPO_ImageNet1k' --port=6006
 ### python src/policy/ppo.py -e ImageNet1k_CIFAR100 -d 0 -c True -i True -n 100
 ### poetry run python query/src/policy/ppo.py -d 1 -e OpenBookQA -c True -n 100
+### poetry run python query/src/policy/ppo.py -e OpenDomain -c True -n 100 
 import argparse
 
 import gymnasium as gym
@@ -13,12 +14,8 @@ import query.envs  # noqa: F401
 parser = argparse.ArgumentParser(description="Create Configuration")
 parser.add_argument("-e", "--env", type=str, help="environment name", default="")
 parser.add_argument("-d", "--device", type=int, help="device name", default=-1)
-parser.add_argument(
-    "-c", "--contextual", type=bool, help="comtxtual of not", default=False
-)
-parser.add_argument(
-    "-i", "--return_image", type=bool, help="return image or not", default=False
-)
+parser.add_argument("-c", "--contextual", type=bool, help="comtxtual of not", default=False)
+parser.add_argument("-i", "--return_image", type=bool, help="return image or not", default=False)
 parser.add_argument("-n", "--step", type=int, help="steps per update", default=100)
 args = parser.parse_args()
 print(args)
@@ -38,8 +35,7 @@ if contextual:
         f"./synced_data/models/{env_name}_step{n_steps}_PPO_img{args.return_image}.zip"
     )
 else:
-    model_path = f"./synced_data/models/{env_name}_step{n_steps}_\
-                    PPO_non_contextual_img{args.return_image}.zip"
+    model_path = f"./synced_data/models/{env_name}_step{n_steps}_PPO_non_contextual_img{args.return_image}.zip"
 
 set_random_seed(42, using_cuda=device != "cpu")
 if "ImageNet" in env_name:
@@ -63,6 +59,19 @@ elif "QA" in env_name:
         answer=answer,
     )
     log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenBookQA_{answer}/"
+elif 'Domain' in env_name:
+    answer = True
+    print(env_name + "-v1")
+    env = gym.make(
+        env_name + "-v1",
+        max_episode_steps=max_episode_steps,
+        device=device,
+        contextual=contextual,
+        answer=answer,
+    )
+    log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenDomain_{answer}/"
+else:
+    raise ValueError("env_name not found")
 
 ### load and then train model if it exists
 policy = "MlpPolicy" if not args.return_image else "CnnPolicy"

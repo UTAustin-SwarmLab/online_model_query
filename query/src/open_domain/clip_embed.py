@@ -1,4 +1,4 @@
-### python ./src/mrqa/clip_embed.py -d 0 -ds NaturalQuestionsShort
+### extract CLIP embeddings for each question, choices, and answer of vicuna-7b-v1.5
 import argparse
 
 import clip
@@ -17,6 +17,8 @@ print(args)
 
 ### download nltk resources
 nltk.download("punkt")
+# print(clip.available_models())
+# input()
 
 batch_size = 128
 device = (
@@ -25,9 +27,12 @@ device = (
 
 ### Load the csv file
 mmlu_data = pd.read_csv("./synced_data/csv/mmlu/vicuna-7b-v1.5_quest_ans.csv")
+mmlu_data.fillna(value="No response.", inplace=True)
 
 ### Load CLIP model
-model, preprocess = clip.load("ViT-B/32", jit=False, device=device)
+model, preprocess = clip.load(
+    "ViT-L/14@336px", jit=False, device=device
+)  # ViT-L/14@336px, ViT-B/32
 
 idx = 0
 q_list = []
@@ -41,17 +46,24 @@ for idx, row in mmlu_data.iterrows():
 
     ### encode the text
     question = row["example"]
-    choices = row["choices"].replace("[", "").replace("]", "")
-    answer = row["answers"]
-
+    choices = row["choices"].replace("[", "").replace("]", "").replace("'", "")
+    answer = row["answer"].replace("[", "").replace("]", "").replace("\n", "")
+    # print(question)
+    # print(choices)
+    # print(idx, answer)
     token = clip.tokenize([question, choices, answer], truncate=True).to(
         device
     )  # shape = [3, 77]
     emb = model.encode_text(token)  # shape = [3, 512]
+    # print(emb.shape)
+    # print(question)
+    # print(choices)
+    # print(answer)
+    # input()
 
     q_list.append(emb[0].cpu().detach().numpy())
-    c_list.append(emb[1:3].flatten().cpu().detach().numpy())
-    a_list.append(emb[-1].cpu().detach().numpy())
+    c_list.append(emb[1].flatten().cpu().detach().numpy())
+    a_list.append(emb[2].cpu().detach().numpy())
 
     idx += 1
 
