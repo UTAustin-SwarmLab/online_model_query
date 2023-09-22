@@ -64,15 +64,21 @@ class OpenDomainGymEnv(gym.Env):
         self.cnt = 0
 
         ### input is an embedding
-        self.observation_space = spaces.Box(-np.inf, np.inf, shape=(self.emb_size,), dtype="float32")
+        self.observation_space = spaces.Box(
+            -np.inf, np.inf, shape=(self.emb_size,), dtype="float32"
+        )
 
         ### load numpy arrays
-        self.arm_results = np.load("synced_data/csv/mmlu/models_accnorm.npy") # shape = [25256, 8]
+        self.arm_results = np.load(
+            "synced_data/csv/mmlu/models_accnorm.npy"
+        )  # shape = [25256, 8]
 
         ### shuffle the arm results
         np.random.seed(42)
         self.num_samples = self.arm_results.shape[0]
-        self.shuffle_idx = np.random.choice(np.arange(self.num_samples), self.num_samples, replace=self.replace_sample)
+        self.shuffle_idx = np.random.choice(
+            np.arange(self.num_samples), self.num_samples, replace=self.replace_sample
+        )
 
         ### remove models
         model_idx = [i for i in bandits.keys()]
@@ -85,9 +91,13 @@ class OpenDomainGymEnv(gym.Env):
         ### load embeddings
         self.question_np = np.load("synced_data/csv/mmlu/clip_emb_question.npy")
         self.context_np = np.load("synced_data/csv/mmlu/clip_emb_choices.npy")
-        self.model_answer_np = np.load("synced_data/csv/mmlu/clip_emb_answer.npy") if self.answer else None
+        self.model_answer_np = (
+            np.load("synced_data/csv/mmlu/clip_emb_answer.npy") if self.answer else None
+        )
 
-    def step(self, action: int, _idx: int = None, _dataset: str = None) -> Tuple[np.ndarray, float, bool, bool, dict]:
+    def step(
+        self, action: int, _idx: int = None, _dataset: str = None
+    ) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
         Args:
             action: (int) the action that the agent took
@@ -113,6 +123,13 @@ class OpenDomainGymEnv(gym.Env):
 
         ### calculate next observation
         if _idx is None:
+            if self.cnt >= self.num_samples:
+                self.shuffle_idx = np.random.choice(
+                    np.arange(self.num_samples),
+                    self.num_samples,
+                    replace=self.replace_sample,
+                )
+                self.cnt = 0
             next_idx = self.shuffle_idx[self.cnt]
         else:
             next_idx = _idx
@@ -130,7 +147,9 @@ class OpenDomainGymEnv(gym.Env):
                     dtype="float32",
                 )
             else:
-                observation = np.concatenate((question_emb, context_emb), axis=0, dtype="float32")
+                observation = np.concatenate(
+                    (question_emb, context_emb), axis=0, dtype="float32"
+                )
         else:
             observation = np.zeros((self.emb_size,), dtype="float32")
 
@@ -139,8 +158,6 @@ class OpenDomainGymEnv(gym.Env):
         ### update next state
         self.state = next_idx  # update current idx
         self.cnt += 1
-        if self.cnt >= self.num_samples:
-            truncated = True
 
         ### update action list
         self.action_list[action] += 1
@@ -167,7 +184,11 @@ class OpenDomainGymEnv(gym.Env):
 
         info = {}
         self.state = -1
-        observation, reward, terminated, truncated, info = self.step(0, _idx=_idx, _dataset=_dataset)
+        print(f"reset: {self.cnt}")
+        # input()
+        observation, reward, terminated, truncated, info = self.step(
+            0, _idx=_idx, _dataset=_dataset
+        )
 
         return observation, info
 
@@ -188,11 +209,15 @@ if __name__ == "__main__":
         while not (terminated or truncated):
             cnt += 1
             action = env.action_space.sample()
+            action = 5
             obs, reward, terminated, truncated, info = env.step(action)
+            total_reward += reward
+            cum_reward = total_reward / cnt
             if cnt % 100 == 0:
                 print(cnt)
-                print(obs)
-                print(reward, terminated, truncated, info)
+                # print(obs)
+                # print(reward, terminated, truncated, info)
+                print(cum_reward)
     else:
         ### test trained model
         import torch

@@ -19,10 +19,13 @@ gen_pipeline = pipeline(
 print(gen_pipeline.device)
 
 question = """What is the source of the material that causes meteor showers?
-A. Near-Earth asteroids gradually disintegrate and spread out along their orbital path. When the Earth passes through the orbit of an asteroid we are bombarded by sand-sized particles which cause a meteor shower.
-B. Near-Earth asteroids disintegrate as they enter Earth's atmosphere creating hundreds of bright meteors that appear to radiate from a single location in the sky.
-C. The nuclei of comets disintigrate as they enter Earth's atmosphere creating hundreds of bright meteors that appear to radiate from a central location in the sky.
-D. The nuclei of comets gradually disintegrate and spread out along the comet's orbital path. When the Earth passes through the orbit of a comet we are bombarded by sand-sized particles which cause a meteor shower."""
+A. Near-Earth asteroids gradually disintegrate and spread out along their orbital path. When the Earth passes through 
+the orbit of an asteroid we are bombarded by sand-sized particles which cause a meteor shower. B. Near-Earth asteroids 
+disintegrate as they enter Earth's atmosphere creating hundreds of bright meteors that appear to radiate from a single 
+location in the sky. C. The nuclei of comets disintigrate as they enter Earth's atmosphere creating hundreds of bright 
+meteors that appear to radiate from a central location in the sky. D. The nuclei of comets gradually disintegrate and 
+spread out along the comet's orbital path. When the Earth passes through the orbit of a comet we are bombarded by 
+sand-sized particles which cause a meteor shower."""
 
 sequences = gen_pipeline(
     question,

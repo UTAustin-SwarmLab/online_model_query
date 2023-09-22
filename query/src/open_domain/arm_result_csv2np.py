@@ -16,7 +16,7 @@ bandits = {
 dataset_size = 25256
 dfs = {}
 for model in bandits.values():
-    csv_path = "./synced_data/csv/mmlu/airoboros-l2-70b_nochoice.csv"
+    csv_path = f"./synced_data/csv/mmlu/{model}_nochoice.csv"
     df = pd.read_csv(csv_path)
     dfs[model] = df
     print(model, df.shape)

@@ -1,4 +1,5 @@
 ### convert MMLU data to csv file
+import json
 import os
 from os import listdir
 from os.path import isfile, join
@@ -7,7 +8,7 @@ import pandas as pd
 
 path_list = [
     "synced_data/mmlu/details_tiiuae__falcon-180B",
-    "synced_data/mmlu/details_tiiuae__falcon-180B-chat",
+    # "synced_data/mmlu/details_tiiuae__falcon-180B-chat",
     # "synced_data/mmlu/details_augtoma__qCammel-70-x",
     # "synced_data/mmlu/details_upstage__Llama-2-70b-instruct",
     # "synced_data/mmlu/details_upstage__Llama-2-70b-instruct-v2",
@@ -18,7 +19,7 @@ path_list = [
 
 model_name_list = [
     "falcon-180B",
-    "falcon-180B-chat",
+    # "falcon-180B-chat",
     # "qCammel-70-x",
     # "Llama-2-70b-instruct",
     # "Llama-2-70b-instruct-v2",
@@ -26,6 +27,8 @@ model_name_list = [
     # "airoboros-l2-70b",
     # "vicuna-7b-v1.5",
 ]
+
+subdatasets = []
 
 include_example = False
 df_goal_shape = (25256, 6 + int(include_example))
@@ -46,6 +49,7 @@ for path, model_name in zip(path_list, model_name_list):
                 df = df[["acc", "acc_norm", "example", "gold"]]
             df["example"] = df["example"].apply(lambda x: x.split("Answer:")[0].strip())
             df["subdataset"] = subdataset
+            subdatasets.append(subdataset)
             df["model"] = model_name
             mmlu_data = pd.concat([mmlu_data, df])
 
@@ -60,6 +64,11 @@ for path, model_name in zip(path_list, model_name_list):
         mmlu_data.to_csv(csv_path + f"{model_name}.csv", index=True)
     else:
         mmlu_data.to_csv(csv_path + f"{model_name}_nochoice.csv", index=True)
+
+json_dict = {i: subdataset for i, subdataset in enumerate(subdatasets)}
+print(json_dict)
+with open("synced_data/mmlu/subdatasets.json", "w") as outfile:
+    json.dump(json_dict, outfile, indent="\t")
 
 
 # from datasets import load_dataset

@@ -1,7 +1,7 @@
 ### tensorboard --logdir='./tensorboard_log/PPO_ImageNet1k' --port=6006
 ### python src/policy/ppo.py -e ImageNet1k_CIFAR100 -d 0 -c True -i True -n 100
 ### poetry run python query/src/policy/ppo.py -d 1 -e OpenBookQA -c True -n 100
-### poetry run python query/src/policy/ppo.py -e OpenDomain -c True -n 100 
+### poetry run python query/src/policy/ppo.py -e OpenDomain -c True -n 100
 import argparse
 
 import gymnasium as gym
@@ -14,8 +14,12 @@ import query.envs  # noqa: F401
 parser = argparse.ArgumentParser(description="Create Configuration")
 parser.add_argument("-e", "--env", type=str, help="environment name", default="")
 parser.add_argument("-d", "--device", type=int, help="device name", default=-1)
-parser.add_argument("-c", "--contextual", type=bool, help="comtxtual of not", default=False)
-parser.add_argument("-i", "--return_image", type=bool, help="return image or not", default=False)
+parser.add_argument(
+    "-c", "--contextual", type=bool, help="comtxtual of not", default=False
+)
+parser.add_argument(
+    "-i", "--return_image", type=bool, help="return image or not", default=False
+)
 parser.add_argument("-n", "--step", type=int, help="steps per update", default=100)
 args = parser.parse_args()
 print(args)
@@ -27,7 +31,7 @@ device = (
     f"cuda:{args.device}" if torch.cuda.is_available() and args.device >= 0 else "cpu"
 )
 max_episode_steps = args.step
-total_timesteps = 50000
+total_timesteps = 25000
 n_steps = args.step  # 2048
 
 if contextual:
@@ -59,7 +63,7 @@ elif "QA" in env_name:
         answer=answer,
     )
     log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenBookQA_{answer}/"
-elif 'Domain' in env_name:
+elif "Domain" in env_name:
     answer = True
     print(env_name + "-v1")
     env = gym.make(
@@ -77,13 +81,14 @@ else:
 policy = "MlpPolicy" if not args.return_image else "CnnPolicy"
 model = PPO(
     policy,
+    # learning_rate=3e-2,  # 3e-4
     env=env,
     n_steps=n_steps,
     batch_size=50,
     verbose=1,
     gamma=0.0,
     tensorboard_log=log_path,
-    stats_window_size=int(1e5),
+    stats_window_size=int(100000),  # 1e5
     device=device,
 )
 model.learn(total_timesteps=total_timesteps, log_interval=1, progress_bar=True)
