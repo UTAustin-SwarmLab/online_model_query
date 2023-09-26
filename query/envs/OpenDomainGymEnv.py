@@ -1,7 +1,9 @@
+import json
 from typing import Tuple
 
 import gymnasium as gym
 import numpy as np
+import pandas as pd
 import torch
 from gymnasium import spaces
 
@@ -95,6 +97,12 @@ class OpenDomainGymEnv(gym.Env):
             np.load("synced_data/csv/mmlu/clip_emb_answer.npy") if self.answer else None
         )
 
+        ### load subsets
+        self.subsets = pd.read_csv("synced_data/csv/mmlu/vicuna-7b-v1.5_nochoice.csv")[
+            "subdataset"
+        ].values
+        self.subset_map = json.load(open("synced_data/mmlu/subdatasets.json"))
+
     def step(
         self, action: int, _idx: int = None, _dataset: str = None
     ) -> Tuple[np.ndarray, float, bool, bool, dict]:
@@ -151,7 +159,13 @@ class OpenDomainGymEnv(gym.Env):
                     (question_emb, context_emb), axis=0, dtype="float32"
                 )
         else:
-            observation = np.zeros((self.emb_size,), dtype="float32")
+            subset = self.subsets[next_idx]
+            subset_idx = 0
+            for key, value in self.subset_map.items():
+                if subset == value:
+                    subset_idx = int(key)
+                    break
+            observation = np.ones((self.emb_size,), dtype="float32") * subset_idx
 
         assert observation.shape == (self.emb_size,), f"obs shape: {observation.shape}"
 
@@ -185,7 +199,6 @@ class OpenDomainGymEnv(gym.Env):
         info = {}
         self.state = -1
         print(f"reset: {self.cnt}")
-        # input()
         observation, reward, terminated, truncated, info = self.step(
             0, _idx=_idx, _dataset=_dataset
         )
@@ -196,7 +209,7 @@ class OpenDomainGymEnv(gym.Env):
 # test emv with main function
 if __name__ == "__main__":
     # Create the Gym environment
-    env = OpenDomainGymEnv(answer=True, contextual=True, exact_match=True)
+    env = OpenDomainGymEnv(answer=True, contextual=False, exact_match=True)
     random = True
 
     # Reset the environment

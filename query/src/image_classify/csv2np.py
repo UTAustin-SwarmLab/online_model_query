@@ -32,8 +32,6 @@ for i in range(cifar100_val_set_size):
         idx += 5
         correctTF = df.iloc[i]["correctTF"]
         cifar_np[i, idx] = 1 if correctTF else 0
-        # print(i, idx, correctTF, cifar_np[i, :])
-        # input()
 
 print(cifar_np.shape)
 print(np.sum(cifar_np[:, :5], axis=0))

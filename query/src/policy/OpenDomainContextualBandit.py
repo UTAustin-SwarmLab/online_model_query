@@ -55,7 +55,6 @@ X = X_complete[arr, :]
 y_complete = np.load("synced_data/csv/mmlu/models_accnorm.npy")  # shape = [25256, 8]
 print("y complete", y_complete.shape)
 
-################# remove vmware model
 y_complete = y_complete[:, model_idx]
 y = y_complete[arr, :]
 

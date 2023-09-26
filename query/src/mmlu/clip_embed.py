@@ -48,18 +48,10 @@ for idx, row in mmlu_data.iterrows():
     question = row["example"]
     choices = row["choices"].replace("[", "").replace("]", "").replace("'", "")
     answer = row["answer"].replace("[", "").replace("]", "").replace("\n", "")
-    # print(question)
-    # print(choices)
-    # print(idx, answer)
     token = clip.tokenize([question, choices, answer], truncate=True).to(
         device
     )  # shape = [3, 77]
     emb = model.encode_text(token)  # shape = [3, 512]
-    # print(emb.shape)
-    # print(question)
-    # print(choices)
-    # print(answer)
-    # input()
 
     q_list.append(emb[0].cpu().detach().numpy())
     c_list.append(emb[1].flatten().cpu().detach().numpy())

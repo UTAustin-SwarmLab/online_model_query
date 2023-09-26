@@ -73,7 +73,7 @@ elif "Domain" in env_name:
         contextual=contextual,
         answer=answer,
     )
-    log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenDomain_{answer}/"
+    log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenDomain_{contextual}{answer}/"
 else:
     raise ValueError("env_name not found")
 
@@ -88,7 +88,7 @@ model = PPO(
     verbose=1,
     gamma=0.0,
     tensorboard_log=log_path,
-    stats_window_size=int(100000),  # 1e5
+    stats_window_size=int(1e5),
     device=device,
 )
 model.learn(total_timesteps=total_timesteps, log_interval=1, progress_bar=True)

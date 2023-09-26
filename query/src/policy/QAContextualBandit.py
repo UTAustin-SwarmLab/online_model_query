@@ -87,11 +87,9 @@ X_complete = np.concatenate(
     axis=0,
 )
 arr = np.random.choice(np.arange(X_complete.shape[0]), dataset_size, replace=True)
-# print(arr)
 print("X complete", X_complete.shape)
 X = X_complete[arr, :]
 
-# remove SQuAD
 dataset_y_list = []
 squad_exact_np = np.load("./synced_data/csv/mrqa/SQuAD_exact.npy")
 trivia_exact_np = np.load("./synced_data/csv/mrqa/TriviaQA-web_exact.npy")
@@ -115,7 +113,7 @@ y_complete = (
     / 100
 )
 print("y complete", y_complete.shape)
-################# remove vmware model
+### remove vmware model
 y_complete = y_complete[:, model_idx]
 y = y_complete[arr, :]
 
