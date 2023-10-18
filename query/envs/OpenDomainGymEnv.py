@@ -11,12 +11,12 @@ import query.envs  # noqa: F401
 
 bandits = {
     0: "vicuna-7b-v1.5",
-    1: "falcon-180B",
+    # 1: "falcon-180B",
     2: "falcon-180B-chat",
     3: "qCammel-70-x",
-    4: "Llama-2-70b-instruct",
+    # 4: "Llama-2-70b-instruct",
     5: "Llama-2-70b-instruct-v2",
-    6: "StableBeluga-13B",
+    # 6: "StableBeluga-13B",
     7: "airoboros-l2-70b",
 }
 
@@ -61,7 +61,7 @@ class OpenDomainGymEnv(gym.Env):
             self.emb_size = emb_size * 2  # question, choices
 
         self.replace_sample = replace_sample
-        self.local_model_name = bandits[7]
+        self.local_model_name = bandits[0]
         self.reward_range = (0, 1)
         self.cnt = 0
 
@@ -137,8 +137,7 @@ class OpenDomainGymEnv(gym.Env):
                     self.num_samples,
                     replace=self.replace_sample,
                 )
-                self.cnt = 0
-            next_idx = self.shuffle_idx[self.cnt]
+            next_idx = self.shuffle_idx[self.cnt % self.num_samples]
         else:
             next_idx = _idx
 
@@ -219,14 +218,14 @@ if __name__ == "__main__":
     total_reward = 0
 
     if random:
-        while not (terminated or truncated):
+        for i in range(50000):
             cnt += 1
             action = env.action_space.sample()
             action = 5
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
             cum_reward = total_reward / cnt
-            if cnt % 100 == 0:
+            if cnt % 1000 == 0:
                 print(cnt)
                 # print(obs)
                 # print(reward, terminated, truncated, info)
