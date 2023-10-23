@@ -57,8 +57,6 @@ for idx, row in mmlu_data.iterrows():
     c_list.append(emb[1].flatten().cpu().detach().numpy())
     a_list.append(emb[2].cpu().detach().numpy())
 
-    idx += 1
-
 ### save lists
 q_list = np.array(q_list)
 print(q_list.shape)

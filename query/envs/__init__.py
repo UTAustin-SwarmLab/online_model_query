@@ -30,3 +30,9 @@ register(
     max_episode_steps=1e5,
     entry_point="query.envs.OpenDomainGymEnv:OpenDomainGymEnv",
 )
+
+register(
+    id="Alfred-v1",
+    max_episode_steps=1e5,
+    entry_point="query.envs.AlfredGymEnv:AlfredGymEnv",
+)
