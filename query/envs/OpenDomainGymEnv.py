@@ -223,12 +223,12 @@ if __name__ == "__main__":
             action = 5
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
-            cum_reward = total_reward / cnt
+            mean_reward = total_reward / cnt
             if cnt % 1000 == 0:
                 print(cnt)
                 # print(obs)
                 # print(reward, terminated, truncated, info)
-                print(cum_reward)
+                print(mean_reward)
     else:
         ### test trained model
         import torch

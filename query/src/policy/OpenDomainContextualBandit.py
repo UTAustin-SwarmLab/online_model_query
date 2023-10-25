@@ -25,11 +25,12 @@ bandits = {
     6: "StableBeluga-13B",
     7: "airoboros-l2-70b",
 }
+data_path = "synced_data/csv/mmlu/"
 
 # batch size - algorithms will be refit after N rounds
 batch_size = 100
 dataset_size = 25000
-percetile = 95
+percentile = 95
 random_seed = 42
 dataset = "mmlu"
 max_iter = 2000
@@ -40,9 +41,9 @@ np.random.seed(random_seed)
 model_idx = [i for i in bandits.keys()]
 
 ### load embeddings
-question_np = np.load("synced_data/csv/mmlu/clip_emb_question.npy")
-context_np = np.load("synced_data/csv/mmlu/clip_emb_choices.npy")
-model_answer_np = np.load("synced_data/csv/mmlu/clip_emb_answer.npy")
+question_np = np.load(data_path + "clip_emb_question.npy")
+context_np = np.load(data_path + "clip_emb_choices.npy")
+model_answer_np = np.load(data_path + "clip_emb_answer.npy")
 X_complete = np.concatenate(
     (question_np, context_np, model_answer_np),
     axis=1,
@@ -52,7 +53,7 @@ arr = np.random.choice(np.arange(X_complete.shape[0]), dataset_size, replace=Tru
 print("X complete", X_complete.shape)
 X = X_complete[arr, :]
 
-y_complete = np.load("synced_data/csv/mmlu/models_accnorm.npy")  # shape = [25256, 8]
+y_complete = np.load(data_path + "models_accnorm.npy")  # shape = [25256, 8]
 print("y complete", y_complete.shape)
 
 y_complete = y_complete[:, model_idx]
@@ -98,7 +99,7 @@ bootstrapped_ucb = BootstrappedUCB(
     deepcopy(base_algorithm),
     nchoices=nchoices,
     beta_prior=beta_prior_ucb,
-    percentile=percetile,
+    percentile=percentile,
     random_state=random_seed,
 )
 epsilon_greedy = EpsilonGreedy(
@@ -109,7 +110,7 @@ epsilon_greedy = EpsilonGreedy(
 )
 logistic_ucb = LogisticUCB(
     nchoices=nchoices,
-    percentile=percetile,
+    percentile=percentile,
     beta_prior=beta_prior_ts,
     random_state=random_seed,
 )
@@ -183,22 +184,22 @@ for i in range(int(np.floor(X.shape[0] / batch_size))):
 
 ### save models
 with open(
-    f"./synced_data/models/ucb_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.pkl",
+    f"./synced_data/models/ucb_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
     "wb",
 ) as f:
     cloudpickle.dump(models[0], f)
 with open(
-    f"./synced_data/models/egr_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.pkl",
+    f"./synced_data/models/egr_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
     "wb",
 ) as f:
     cloudpickle.dump(models[1], f)
 with open(
-    f"./synced_data/models/lucb_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.pkl",
+    f"./synced_data/models/lucb_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
     "wb",
 ) as f:
     cloudpickle.dump(models[2], f)
 with open(
-    f"./synced_data/models/lst_actions_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.pkl",
+    f"./synced_data/models/lst_actions_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
     "wb",
 ) as f:
     cloudpickle.dump(lst_actions, f)
@@ -219,7 +220,7 @@ colors = plt.cm.tab20(np.linspace(0, 1, 20))
 ax = plt.subplot(111)
 plt.plot(
     get_mean_reward(rewards_ucb),
-    label=f"Bootstrapped Upper Confidence Bound (C.I.={percetile}%)",
+    label=f"Bootstrapped Upper Confidence Bound (C.I.={percentile}%)",
     linewidth=lwd,
     color=colors[0],
 )
@@ -231,7 +232,7 @@ plt.plot(
 )
 plt.plot(
     get_mean_reward(rewards_lucb),
-    label=f"Logistic Upper Confidence Bound (C.I.={percetile}%)",
+    label=f"Logistic Upper Confidence Bound (C.I.={percentile}%)",
     linewidth=lwd,
     color=colors[8],
 )
@@ -246,15 +247,15 @@ print("Overall best arm: ", y_complete.mean(axis=0))
 
 ### save cumulative reward
 np.save(
-    f"./synced_data/cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.npy",
+    f"./synced_data/cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy",
     rewards_ucb,
 )
 np.save(
-    f"./synced_data/cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.npy",
+    f"./synced_data/cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy",
     rewards_egr,
 )
 np.save(
-    f"./synced_data/cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.npy",
+    f"./synced_data/cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy",
     rewards_lucb,
 )
 
@@ -277,6 +278,6 @@ plt.title("Comparison of Online Contextual Bandit Policies)", size=30)
 plt.grid()
 # plt.show()
 plt.savefig(
-    f"./plot/ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.png",
+    f"./plot/ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.png",
     bbox_inches="tight",
 )

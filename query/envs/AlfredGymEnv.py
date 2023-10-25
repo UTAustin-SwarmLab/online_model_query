@@ -1,3 +1,5 @@
+import os
+import pickle
 from typing import Tuple
 
 import gymnasium as gym
@@ -9,11 +11,12 @@ from gymnasium import spaces
 import query.envs  # noqa: F401
 
 bandits = {
-    0: "Seq2Seq",
-    1: "FILM",
-    2: "HiTUT",
-    3: "HLSM",
+    0: "FILM",
+    1: "HiTUT",
+    2: "HLSM",
 }
+
+data_path = "synced_data/csv/alfred_data/"
 
 
 class AlfredGymEnv(gym.Env):
@@ -25,8 +28,9 @@ class AlfredGymEnv(gym.Env):
         self,
         emb_size: int = 768,
         device: str or torch.device = "cpu",
-        low_level: bool = True,
         contextual: bool = True,
+        low_level: bool = True,
+        floor_plan: bool = True,
         replace_sample: bool = True,
         **kwargs,
     ) -> None:
@@ -47,22 +51,74 @@ class AlfredGymEnv(gym.Env):
         self.action_list = [0 for _ in range(n_bandits)]
 
         self.device = device
-        self.emb_size = emb_size * 4  # question, choices
+        self.emb_size = emb_size * 5  # instruction + low level instruction + floorplan
 
         self.replace_sample = replace_sample
         self.local_model_name = bandits[0]
         self.reward_range = (0, 1)
         self.cnt = 0
+        self.low_level = low_level
+        self.floor_plan = floor_plan
 
         ### input is an embedding
         self.observation_space = spaces.Box(
             -np.inf, np.inf, shape=(self.emb_size,), dtype="float32"
         )
 
-        ### load numpy arrays
-        self.arm_results = pd.load(
-            "./synced_data/csv/alfred_data/alfred_merged_valid_language_goal.csv"
-        )
+        ### load embeddings
+        if not (
+            os.path.isfile(data_path + "clip_emb.npy")
+            or os.path.isfile(data_path + "arm_results.npy")
+        ):
+            instruction_dict = pickle.load(
+                open(data_path + "clip_emb_instruct.pkl", "rb")
+            )
+            low_level_instruction_dict = pickle.load(
+                open(data_path + "clip_emb_low_instruct.pkl", "rb")
+            )
+            floorpan_dict = pickle.load(open(data_path + "floor_plan.pkl", "rb"))
+
+            ### load csv data
+            alfred_data = pd.read_csv(
+                data_path + "alfred_merged_valid_language_goal.csv"
+            )
+            arm_results = pd.read_csv(data_path + "alfred_models_results.csv")
+            emb = []
+            y_complete = []
+            for _, row in alfred_data.iterrows():
+                task_id = row["task_idx"]
+                repeat_idx = row["repeat_idx"]
+                floorplan = row["task_floor"]
+                emb.append(
+                    np.concatenate(
+                        (
+                            instruction_dict[(task_id, repeat_idx)],
+                            low_level_instruction_dict[(task_id, repeat_idx)],
+                            floorpan_dict[floorplan],
+                        )
+                    )
+                )
+                y = np.zeros(len(bandits))
+                for i, model in bandits.items():
+                    result_row = arm_results.loc[
+                        (arm_results["task_idx"] == task_id)
+                        & (arm_results["repeat_idx"] == repeat_idx % 10)
+                        & (arm_results["model"] == model)
+                    ]
+                    sr = result_row["SR"].iloc[0]
+                    gc = result_row["GC"].iloc[0]
+                    L = result_row["L"].iloc[0]
+                    L_demo = result_row["L*"].iloc[0]
+                    y[i] = gc  # + sr + L - L_demo
+                y_complete.append(y)
+
+            emb = np.array(emb)
+            self.arm_results = np.array(y_complete)
+            np.save(data_path + "clip_emb.npy", emb)
+            np.save(data_path + "arm_results.npy", self.arm_results)
+        else:
+            emb = np.load(data_path + "clip_emb.npy")
+            self.arm_results = np.load(data_path + "arm_results.npy")
 
         ### shuffle the arm results
         np.random.seed(42)
@@ -71,15 +127,10 @@ class AlfredGymEnv(gym.Env):
             np.arange(self.num_samples), self.num_samples, replace=self.replace_sample
         )
 
-        ### remove models
-        model_idx = [i for i in bandits.keys()]  # noqa: F401
-        self.arm_results = self.arm_results.query("model in @model_idx")
-
         ### load embeddings
-        self.instruct_np = np.load("synced_data/csv/mmlu/clip_emb_instruct.npy")
-        self.ll_instruct_np = np.load(
-            "synced_data/csv/mmlu/clip_emb_low_level_instruct.npy"
-        )
+        self.instruct_np = emb[:, :emb_size]
+        self.ll_instruct_np = emb[:, emb_size : emb_size * 4]
+        self.floorplan_np = emb[:, emb_size * 4 :]
 
     def step(
         self, action: int, _idx: int = None
@@ -100,17 +151,7 @@ class AlfredGymEnv(gym.Env):
         ### nothing is sequential here
         ### calculate reward
         current_idx = self.state
-        selected_row = self.arm_results.loc[
-            self.arm_results["task_idx"]
-            == current_idx[0] & self.arm_results["repeat_idx"]
-            == current_idx[1] & self.arm_results["model"]
-            == bandits[action]
-        ]
-        sr = selected_row["SR"]
-        gc = selected_row["GC"]
-        L = selected_row["L"]
-        L_demo = selected_row["L*"]
-        split = selected_row["split"]
+        reward = self.arm_results[current_idx, action]
 
         ### calculate done
         terminated = False
@@ -132,16 +173,20 @@ class AlfredGymEnv(gym.Env):
         ### calculate the next observation
         if self.contextual:
             ### load the embeddings of a question and its choices and answer
+            obs_np = []
             instruct_emb = self.instruct_np[next_idx, :]
+            obs_np.append(instruct_emb)
             if self.low_level:
                 ll_instruct_emb = self.ll_instruct_np[next_idx, :]
-                observation = np.concatenate(
-                    (instruct_emb, ll_instruct_emb),
-                    axis=0,
-                    dtype="float32",
-                )
-            else:
-                observation = instruct_emb.astype("float32")
+                obs_np.append(ll_instruct_emb)
+            if self.floor_plan:
+                floorplan_emb = self.floorplan_np[next_idx, :]
+                obs_np.append(floorplan_emb)
+            observation = np.concatenate(
+                obs_np,
+                axis=0,
+                dtype="float32",
+            )
         else:
             observation = np.ones((self.emb_size,), dtype="float32")
 
@@ -160,7 +205,6 @@ class AlfredGymEnv(gym.Env):
         self,
         seed: int = None,
         _idx: int = None,
-        _dataset: str = None,
         **kwargs,
     ) -> Tuple[np.ndarray, dict]:
         """
@@ -177,8 +221,9 @@ class AlfredGymEnv(gym.Env):
         info = {}
         self.state = -1
         print(f"reset: {self.cnt}")
-        observation, reward, terminated, truncated, info = self.step(
-            0, _idx=_idx, _dataset=_dataset
+        observation, _, _, _, info = self.step(
+            0,
+            _idx=_idx,
         )
 
         return observation, info
@@ -187,7 +232,7 @@ class AlfredGymEnv(gym.Env):
 # test emv with main function
 if __name__ == "__main__":
     # Create the Gym environment
-    env = AlfredGymEnv(low_level=True, contextual=False, replace_sample=True)
+    env = AlfredGymEnv(low_level=True, floor_plan=True, contextual=True)
     random = True
 
     # Reset the environment
@@ -200,15 +245,15 @@ if __name__ == "__main__":
         for i in range(50000):
             cnt += 1
             action = env.action_space.sample()
-            action = 5
+            # action = 5
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
-            cum_reward = total_reward / cnt
+            mean_reward = total_reward / cnt
             if cnt % 1000 == 0:
                 print(cnt)
                 # print(obs)
                 # print(reward, terminated, truncated, info)
-                print(cum_reward)
+                print(mean_reward)
     else:
         ### test trained model
         import torch

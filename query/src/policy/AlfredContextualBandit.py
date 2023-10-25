@@ -3,11 +3,11 @@
 # Turning logistic regression into contextual bandits policies:
 import os
 from copy import deepcopy
-from operator import itemgetter
 
 import cloudpickle
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from contextualbandits.online import (
     BootstrappedUCB,
     EpsilonGreedy,
@@ -17,100 +17,75 @@ from pylab import rcParams
 from sklearn.linear_model import LogisticRegression
 
 bandits = {
-    # 0: "deberta-v3-base-mrqa",
-    1: "deberta-v3-base-squad2",
-    2: "bigbird-base-trivia-itc",
-    3: "distilbert-base-uncased-distilled-squad",
-    4: "roberta-base-squad2-nq",
+    0: "FILM",
+    1: "HiTUT",
+    2: "HLSM",
 }
 
-datasets = {
-    "SQuAD": 0,
-    "TriviaQA-web": 1,
-    "NaturalQuestionsShort": 2,
-    "NewsQA": 3,
-    "SearchQA": 4,
-    "HotpotQA": 5,
-}
-
-data_path = "synced_data/csv/mrqa/"
+data_path = "synced_data/csv/alfred_data/"
 
 # batch size - algorithms will be refit after N rounds
 batch_size = 100
-dataset_size = 50000
+dataset_size = 13000
 percentile = 95
 random_seed = 42
-dataset = "mrqa"
+dataset = "mmlu"
 max_iter = 2000
 ### set random seed
 np.random.seed(random_seed)
 
 ### idx
 model_idx = [i for i in bandits.keys()]
-dataset_idx = [i for i in datasets.values()]
 
 ### load embeddings
-dataset_emb_list = []
-squad_question_np = np.load(data_path + "clip_emb_SQuAD_question.npy")
-squad_context_np = np.load(data_path + "clip_emb_SQuAD_context.npy")
-squad_np = np.concatenate((squad_question_np, squad_context_np), axis=1)
-trivia_question_np = np.load(data_path + "clip_emb_TriviaQA-web_question.npy")
-trivia_context_np = np.load(data_path + "clip_emb_TriviaQA-web_context.npy")
-trivia_np = np.concatenate((trivia_question_np, trivia_context_np), axis=1)
-natural_question_np = np.load(data_path + "clip_emb_NaturalQuestionsShort_question.npy")
-natural_context_np = np.load(data_path + "clip_emb_NaturalQuestionsShort_context.npy")
-natural_np = np.concatenate((natural_question_np, natural_context_np), axis=1)
-news_question_np = np.load(data_path + "clip_emb_NewsQA_question.npy")
-news_context_np = np.load(data_path + "clip_emb_NewsQA_context.npy")
-news_np = np.concatenate((news_question_np, news_context_np), axis=1)
-search_question_np = np.load(data_path + "clip_emb_SearchQA_question.npy")
-search_context_np = np.load(data_path + "clip_emb_SearchQA_context.npy")
-search_np = np.concatenate((search_question_np, search_context_np), axis=1)
-hotpot_question_np = np.load(data_path + "clip_emb_HotpotQA_question.npy")
-hotpot_context_np = np.load(data_path + "clip_emb_HotpotQA_context.npy")
-hotpot_np = np.concatenate((hotpot_question_np, hotpot_context_np), axis=1)
-
-dataset_emb_list.append(squad_np)
-dataset_emb_list.append(trivia_np)
-dataset_emb_list.append(natural_np)
-dataset_emb_list.append(news_np)
-dataset_emb_list.append(search_np)
-dataset_emb_list.append(hotpot_np)
-dataset_emb_list = itemgetter(*dataset_idx)(dataset_emb_list)
-
-X_complete = np.concatenate(
-    (dataset_emb_list),
-    axis=0,
+instruction_dict = cloudpickle.load(open(data_path + "clip_emb_instruct.pkl", "rb"))
+low_level_instruction_dict = cloudpickle.load(
+    open(data_path + "clip_emb_low_instruct.pkl", "rb")
 )
+floorpan_dict = cloudpickle.load(open(data_path + "floor_plan.pkl", "rb"))
+
+### load csv data
+alfred_data = pd.read_csv(data_path + "alfred_merged_valid_language_goal.csv")
+arm_results = pd.read_csv(data_path + "alfred_models_results.csv")
+
+emb = []
+y_complete = []
+for _, row in alfred_data.iterrows():
+    task_id = row["task_idx"]
+    repeat_idx = row["repeat_idx"]
+    floorplan = row["task_floor"]
+    emb.append(
+        np.concatenate(
+            (
+                instruction_dict[(task_id, repeat_idx)],
+                low_level_instruction_dict[(task_id, repeat_idx)],
+                floorpan_dict[floorplan],
+            )
+        )
+    )
+    y = np.zeros(len(bandits))
+    for i, model in bandits.items():
+        result_row = arm_results.loc[
+            (arm_results["task_idx"] == task_id)
+            & (arm_results["repeat_idx"] == repeat_idx % 10)
+            & (arm_results["model"] == model)
+        ]
+        sr = result_row["SR"].iloc[0]
+        gc = result_row["GC"].iloc[0]
+        L = result_row["L"].iloc[0]
+        L_demo = result_row["L*"].iloc[0]
+        y[i] = gc  # + sr + L - L_demo
+    y_complete.append(y)
+
+X_complete = np.array(emb)
 arr = np.random.choice(np.arange(X_complete.shape[0]), dataset_size, replace=True)
+# print(arr)
 print("X complete", X_complete.shape)
 X = X_complete[arr, :]
 
-dataset_y_list = []
-squad_exact_np = np.load(data_path + "SQuAD_exact.npy")
-trivia_exact_np = np.load(data_path + "TriviaQA-web_exact.npy")
-natural_exact_np = np.load(data_path + "NaturalQuestionsShort_exact.npy")
-news_exact_np = np.load(data_path + "NewsQA_exact.npy")
-search_exact_np = np.load(data_path + "SearchQA_exact.npy")
-hotpot_exact_np = np.load(data_path + "HotpotQA_exact.npy")
-dataset_y_list.append(squad_exact_np)
-dataset_y_list.append(trivia_exact_np)
-dataset_y_list.append(natural_exact_np)
-dataset_y_list.append(news_exact_np)
-dataset_y_list.append(search_exact_np)
-dataset_y_list.append(hotpot_exact_np)
-dataset_y_list = itemgetter(*dataset_idx)(dataset_y_list)
-
-y_complete = (
-    np.concatenate(
-        (dataset_y_list),
-        axis=0,
-    )
-    / 100
-)
+y_complete = np.array(y_complete)
 print("y complete", y_complete.shape)
-### remove vmware model
-y_complete = y_complete[:, model_idx]
+
 y = y_complete[arr, :]
 
 print(X.shape)
@@ -125,7 +100,12 @@ opt_ = y_complete.max(axis=1)  # shape: (dataset_size, )
 opt_avg = opt_.mean()
 opt_ = np.cumsum(opt_) / (np.arange(opt_.shape[0]) + 1)
 print("Optimal mean reward: ", opt_avg)
-print("Overall best arm: ", y_complete.mean(axis=0).max())
+print("Overall best arm: ", y_complete.mean(axis=0).argmax())
+print("Best arm reward: ", y_complete.mean(axis=0).max())
+print("Overall worst arm: ", y_complete.mean(axis=0).argmin())
+print("Worst arm reward: ", y_complete.mean(axis=0).min())
+print("arms: ", y_complete.mean(axis=0))
+input("Press Enter to continue...")
 
 ### save optimal reward
 os.makedirs("./cumulative_reward", exist_ok=True)
@@ -233,22 +213,22 @@ for i in range(int(np.floor(X.shape[0] / batch_size))):
 
 ### save models
 with open(
-    f"./synced_data/synced_data/models/ucb_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
+    f"./synced_data/models/ucb_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
     "wb",
 ) as f:
     cloudpickle.dump(models[0], f)
 with open(
-    f"./synced_data/synced_data/models/egr_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
+    f"./synced_data/models/egr_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
     "wb",
 ) as f:
     cloudpickle.dump(models[1], f)
 with open(
-    f"./synced_data/synced_data/models/lucb_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
+    f"./synced_data/models/lucb_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
     "wb",
 ) as f:
     cloudpickle.dump(models[2], f)
 with open(
-    f"./synced_data/synced_data/models/lst_actions_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
+    f"./synced_data/models/lst_actions_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
     "wb",
 ) as f:
     cloudpickle.dump(lst_actions, f)
