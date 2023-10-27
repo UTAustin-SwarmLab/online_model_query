@@ -1,7 +1,10 @@
 ### tensorboard --logdir='./tensorboard_log/PPO_ImageNet1k' --port=6006
-### python src/policy/ppo.py -e ImageNet1k_CIFAR100 -d 0 -c True -i True -n 100
+### tensorboard --logdir='./tensorboard_log/PPO_step100_OpenBookQA_True' --port=6006
+### tensorboard --logdir='./tensorboard_log/PPO_step50_Alfred_PLWGC' --port=6006
+### poetry run python query/src/policy/ppo.py -e ImageNet1k_CIFAR100 -d 0 -c True -i True -n 100
 ### poetry run python query/src/policy/ppo.py -d 1 -e OpenBookQA -c True -n 100
 ### poetry run python query/src/policy/ppo.py -e OpenDomain -c True -n 100
+### poetry run python query/src/policy/ppo.py -e Alfred -c True -n 50
 import argparse
 
 import gymnasium as gym
@@ -24,14 +27,13 @@ parser.add_argument("-n", "--step", type=int, help="steps per update", default=1
 args = parser.parse_args()
 print(args)
 
-# 'ImageNet1k', 'ImageNet1k_CIFAR100', 'ImageNet1k_CIFAR100Np', 'OpenBookQA'
+# 'ImageNet1k', 'ImageNet1k_CIFAR100', 'ImageNet1k_CIFAR100Np', 'OpenBookQA', 'Alfred-v1'
 env_name = args.env
 contextual = args.contextual  # False
 device = (
     f"cuda:{args.device}" if torch.cuda.is_available() and args.device >= 0 else "cpu"
 )
 max_episode_steps = args.step
-total_timesteps = 25000
 n_steps = args.step  # 2048
 
 if contextual:
@@ -54,6 +56,7 @@ if "ImageNet" in env_name:
     log_path = f"./tensorboard_log/PPO_step{n_steps}_ImageNet1k_img{args.return_image}/"
 elif "QA" in env_name:
     answer = True
+    total_timesteps = 50000
     print(env_name + "-v1")
     env = gym.make(
         env_name + "-v1",
@@ -61,9 +64,11 @@ elif "QA" in env_name:
         device=device,
         contextual=contextual,
         answer=answer,
+        replace_sample=False,
     )
     log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenBookQA_{answer}/"
 elif "Domain" in env_name:
+    total_timesteps = 25000
     answer = True
     print(env_name + "-v1")
     env = gym.make(
@@ -74,21 +79,36 @@ elif "Domain" in env_name:
         answer=answer,
     )
     log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenDomain_{contextual}{answer}/"
+elif "Alfred" in env_name:
+    print(env_name + "-v1")
+    reward_metric = "PLWGC"  # "PLWGC"
+    total_timesteps = 13000
+    env = gym.make(
+        env_name + "-v1",
+        max_episode_steps=max_episode_steps,
+        device=device,
+        contextual=contextual,
+        low_level=True,
+        floor_plan=False,
+        replace=False,
+        reward_metric=reward_metric,
+    )
+    log_path = f"./tensorboard_log/PPO_step{n_steps}_Alfred_{reward_metric}/"
 else:
-    raise ValueError("env_name not found")
+    raise ValueError("env_name not found: " + env_name)
 
 ### load and then train model if it exists
 policy = "MlpPolicy" if not args.return_image else "CnnPolicy"
 model = PPO(
     policy,
-    # learning_rate=3e-2,  # 3e-4
+    # learning_rate=3e-4,  # 3e-4
     env=env,
     n_steps=n_steps,
-    batch_size=50,
+    batch_size=n_steps,
     verbose=1,
     gamma=0.0,
     tensorboard_log=log_path,
-    stats_window_size=int(1e5),
+    stats_window_size=int(1),
     device=device,
 )
 model.learn(total_timesteps=total_timesteps, log_interval=1, progress_bar=True)

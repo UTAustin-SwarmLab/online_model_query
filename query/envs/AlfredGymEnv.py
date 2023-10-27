@@ -17,6 +17,7 @@ bandits = {
 }
 
 data_path = "synced_data/csv/alfred_data/"
+dataset_size = 13128
 
 
 class AlfredGymEnv(gym.Env):
@@ -32,6 +33,7 @@ class AlfredGymEnv(gym.Env):
         low_level: bool = True,
         floor_plan: bool = True,
         replace_sample: bool = True,
+        reward_metric: str = "GC",
         **kwargs,
     ) -> None:
         """
@@ -51,12 +53,14 @@ class AlfredGymEnv(gym.Env):
         self.action_list = [0 for _ in range(n_bandits)]
 
         self.device = device
-        self.emb_size = emb_size * 5  # instruction + low level instruction + floorplan
+        size = int(1 + 3 * low_level + 1 * floor_plan)
+        self.emb_size = (
+            emb_size * size
+        )  # instruction + low level instruction + floorplan
 
         self.replace_sample = replace_sample
-        self.local_model_name = bandits[0]
-        self.reward_range = (0, 1)
         self.cnt = 0
+        self.cumulative_reward = 0
         self.low_level = low_level
         self.floor_plan = floor_plan
 
@@ -84,7 +88,7 @@ class AlfredGymEnv(gym.Env):
             )
             arm_results = pd.read_csv(data_path + "alfred_models_results.csv")
             emb = []
-            y_complete = []
+            y = np.zeros((4, len(alfred_data), len(bandits)), dtype=np.float32)
             for _, row in alfred_data.iterrows():
                 task_id = row["task_idx"]
                 repeat_idx = row["repeat_idx"]
@@ -109,16 +113,41 @@ class AlfredGymEnv(gym.Env):
                     gc = result_row["GC"].iloc[0]
                     L = result_row["L"].iloc[0]
                     L_demo = result_row["L*"].iloc[0]
-                    y[i] = gc  # + sr + L - L_demo
-                y_complete.append(y)
+                    y[0, _, i] = sr
+                    y[1, _, i] = gc
+                    y[2, _, i] = L
+                    y[3, _, i] = L_demo
 
             emb = np.array(emb)
-            self.arm_results = np.array(y_complete)
+            arm_results = np.array(y)
             np.save(data_path + "clip_emb.npy", emb)
-            np.save(data_path + "arm_results.npy", self.arm_results)
+            np.save(data_path + "arm_results.npy", arm_results)
         else:
             emb = np.load(data_path + "clip_emb.npy")
-            self.arm_results = np.load(data_path + "arm_results.npy")
+            arm_results = np.load(data_path + "arm_results.npy")
+            print("loaded data")
+
+        if reward_metric == "GC":
+            self.arm_results = arm_results[1, :, :]
+        elif reward_metric == "PLWGC":
+            self.arm_results = arm_results[1, :, :] * (
+                arm_results[3, :, :]
+                / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
+            )
+        elif reward_metric == "SR":
+            self.arm_results = arm_results[0, :, :]
+        elif reward_metric == "PLWSR":
+            self.arm_results = arm_results[0, :, :] * (
+                arm_results[3, :, :]
+                / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
+            )
+        elif reward_metric == "gc and plw":
+            gc = arm_results[1, :, :]
+            plw = arm_results[1, :, :] * (
+                arm_results[3, :, :]
+                / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
+            )
+            self.arm_results = 0.5 * gc + 0.5 * plw
 
         ### shuffle the arm results
         np.random.seed(42)
@@ -198,6 +227,9 @@ class AlfredGymEnv(gym.Env):
 
         ### update action list
         self.action_list[action] += 1
+        self.cumulative_reward += reward
+        if self.cnt % 1000 == 0:
+            print(f"step: {self.cnt}, Cum Reward", self.cumulative_reward / self.cnt)
 
         return (observation, reward, terminated, truncated, info)
 
@@ -225,7 +257,7 @@ class AlfredGymEnv(gym.Env):
             0,
             _idx=_idx,
         )
-
+        self.cnt -= 1
         return observation, info
 
 

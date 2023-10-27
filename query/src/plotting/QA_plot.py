@@ -25,7 +25,7 @@ datasets = {
 # batch size - algorithms will be refit after N rounds
 batch_size = 100
 dataset_size = 50000
-percetile = 95
+percentile = 95
 random_seed = 42
 dataset = "mrqa"
 max_iter = 2000
@@ -120,24 +120,23 @@ assert (
 
 ### load cumulative reward
 rewards_ucb = np.load(
-    f"./synced_data/cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.npy"
+    f"./synced_data/cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy"
 )
 rewards_egr = np.load(
-    f"./synced_data/cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.npy"
+    f"./synced_data/cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy"
 )
 rewards_lucb = np.load(
-    f"./synced_data/cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.npy"
+    f"./synced_data/cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy"
 )
 
 ### calculate optimal reward
 rewards_opt = np.array(int(y.shape[0] / batch_size) * [y.max(axis=1).mean()])
-print(rewards_opt.shape)
 
 ### load PPO reward
 ppo = pd.read_csv("./synced_data/cumulative_reward/QAstep100_embed.csv")
 ### pandas to numpy
-rewards_ppo = ppo["Value"].to_numpy()[: rewards_opt.shape[0]]
-rewards_ppo /= batch_size**2
+rewards_ppo = ppo["mean_reward"].to_numpy()[: rewards_opt.shape[0]]
+# rewards_ppo /= batch_size**2
 
 
 def get_mean_reward(reward_lst, batch_size=batch_size):
@@ -155,7 +154,7 @@ colors = plt.cm.tab20(np.linspace(0, 1, 20))
 ax = plt.subplot(111)
 plt.plot(
     get_mean_reward(rewards_ucb),
-    label=f"Bootstrapped UCB (C.I.={percetile}%)",
+    label=f"Bootstrapped UCB (C.I.={percentile}%)",
     linewidth=lwd,
     color=colors[0],
 )
@@ -167,11 +166,11 @@ plt.plot(
 )  ### (p0=20%, decay=0.9999) , marker='o', linestyle=':'
 plt.plot(
     get_mean_reward(rewards_lucb),
-    label=f"Logistic UCB (C.I.={percetile}%)",
+    label=f"Logistic UCB (C.I.={percentile}%)",
     linewidth=lwd,
     color=colors[8],
 )
-plt.plot(rewards_ppo, label="PPO with CLIP", linewidth=lwd, color=colors[12])
+plt.plot(rewards_ppo, label="PPO", linewidth=lwd, color=colors[12])
 plt.plot(
     rewards_opt,
     label="Optimal Policy",
@@ -213,6 +212,6 @@ plt.title("Question Answering", size=30)
 plt.grid()
 # plt.show()
 plt.savefig(
-    f"./plot/{dataset}_ds{dataset_size}_bs{batch_size}_per{percetile}.png",
+    f"./plot/{dataset}_ds{dataset_size}_bs{batch_size}_per{percentile}.png",
     bbox_inches="tight",
 )
