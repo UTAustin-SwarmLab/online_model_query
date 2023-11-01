@@ -7,6 +7,7 @@ from copy import deepcopy
 import cloudpickle
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from contextualbandits.online import (
     BootstrappedUCB,
     EpsilonGreedy,
@@ -16,15 +17,77 @@ from pylab import rcParams
 from sklearn.linear_model import LogisticRegression
 
 bandits = {
-    0: "vicuna-7b-v1.5",
-    1: "falcon-180B",
+    # 0: "vicuna-7b-v1.5",
+    # 1: "falcon-180B",
     2: "falcon-180B-chat",
-    3: "qCammel-70-x",
+    # 3: "qCammel-70-x",
     4: "Llama-2-70b-instruct",
-    5: "Llama-2-70b-instruct-v2",
-    6: "StableBeluga-13B",
+    # 5: "Llama-2-70b-instruct-v2",
+    # 6: "StableBeluga-13B",
     7: "airoboros-l2-70b",
 }
+subsets_dict = {
+    "0": "arc:challenge",
+    "1": "hellaswag",
+    "2": "hendrycksTest-abstract_algebra",
+    "3": "hendrycksTest-anatomy",
+    "4": "hendrycksTest-astronomy",
+    "5": "hendrycksTest-business_ethics",
+    "6": "hendrycksTest-clinical_knowledge",
+    "7": "hendrycksTest-college_biology",
+    "8": "hendrycksTest-college_chemistry",
+    "9": "hendrycksTest-college_computer_science",
+    "10": "hendrycksTest-college_mathematics",
+    "11": "hendrycksTest-college_medicine",
+    "12": "hendrycksTest-college_physics",
+    "13": "hendrycksTest-computer_security",
+    "14": "hendrycksTest-conceptual_physics",
+    "15": "hendrycksTest-econometrics",
+    "16": "hendrycksTest-electrical_engineering",
+    "17": "hendrycksTest-elementary_mathematics",
+    "18": "hendrycksTest-formal_logic",
+    "19": "hendrycksTest-global_facts",
+    "20": "hendrycksTest-high_school_biology",
+    "21": "hendrycksTest-high_school_chemistry",
+    "22": "hendrycksTest-high_school_computer_science",
+    "23": "hendrycksTest-high_school_european_history",
+    "24": "hendrycksTest-high_school_geography",
+    "25": "hendrycksTest-high_school_government_and_politics",
+    "26": "hendrycksTest-high_school_macroeconomics",
+    "27": "hendrycksTest-high_school_mathematics",
+    "28": "hendrycksTest-high_school_microeconomics",
+    "29": "hendrycksTest-high_school_physics",
+    "30": "hendrycksTest-high_school_psychology",
+    "31": "hendrycksTest-high_school_statistics",
+    "32": "hendrycksTest-high_school_us_history",
+    "33": "hendrycksTest-high_school_world_history",
+    "34": "hendrycksTest-human_aging",
+    "35": "hendrycksTest-human_sexuality",
+    "36": "hendrycksTest-international_law",
+    "37": "hendrycksTest-jurisprudence",
+    "38": "hendrycksTest-logical_fallacies",
+    "39": "hendrycksTest-machine_learning",
+    "40": "hendrycksTest-management",
+    "41": "hendrycksTest-marketing",
+    "42": "hendrycksTest-medical_genetics",
+    "43": "hendrycksTest-miscellaneous",
+    "44": "hendrycksTest-moral_disputes",
+    "45": "hendrycksTest-moral_scenarios",
+    "46": "hendrycksTest-nutrition",
+    "47": "hendrycksTest-philosophy",
+    "48": "hendrycksTest-prehistory",
+    "49": "hendrycksTest-professional_accounting",
+    "50": "hendrycksTest-professional_law",
+    "51": "hendrycksTest-professional_medicine",
+    "52": "hendrycksTest-professional_psychology",
+    "53": "hendrycksTest-public_relations",
+    "54": "hendrycksTest-security_studies",
+    "55": "hendrycksTest-sociology",
+    "56": "hendrycksTest-us_foreign_policy",
+    "57": "hendrycksTest-virology",
+    "58": "hendrycksTest-world_religions",
+}
+
 data_path = "synced_data/csv/mmlu/"
 
 # batch size - algorithms will be refit after N rounds
@@ -40,10 +103,21 @@ np.random.seed(random_seed)
 ### idx
 model_idx = [i for i in bandits.keys()]
 
+### load subsets ###
+subsets = pd.read_csv("synced_data/csv/mmlu/vicuna-7b-v1.5_nochoice.csv")
+subset_map = subsets_dict
+selected_indices = []
+idx = 0
+for _, row in subsets.iterrows():
+    if row["subdataset"] in subset_map.values():
+        selected_indices.append(idx)
+    idx += 1
+print(f"selected indices: {len(selected_indices)}")
+
 ### load embeddings
-question_np = np.load(data_path + "clip_emb_question.npy")
-context_np = np.load(data_path + "clip_emb_choices.npy")
-model_answer_np = np.load(data_path + "clip_emb_answer.npy")
+question_np = np.load(data_path + "clip_emb_question.npy")[selected_indices, :]
+context_np = np.load(data_path + "clip_emb_choices.npy")[selected_indices, :]
+model_answer_np = np.load(data_path + "clip_emb_answer.npy")[selected_indices, :]
 X_complete = np.concatenate(
     (question_np, context_np, model_answer_np),
     axis=1,
@@ -56,6 +130,7 @@ X = X_complete[arr, :]
 y_complete = np.load(data_path + "models_accnorm.npy")  # shape = [25256, 8]
 print("y complete", y_complete.shape)
 
+y_complete = y_complete[selected_indices, :]
 y_complete = y_complete[:, model_idx]
 y = y_complete[arr, :]
 

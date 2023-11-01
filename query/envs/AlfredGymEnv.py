@@ -257,7 +257,7 @@ class AlfredGymEnv(gym.Env):
             0,
             _idx=_idx,
         )
-        self.cnt -= 1
+        self.cnt -= 1  ### Bug...
         return observation, info
 
 

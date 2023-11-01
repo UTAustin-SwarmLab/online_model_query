@@ -216,7 +216,7 @@ plt.tick_params(axis="both", which="major", labelsize=25)
 
 plt.xlabel(f"Rounds (models were updated every {batch_size} rounds)", size=25)
 plt.ylabel("Cumulative Mean Reward", size=25)
-plt.title("Question Answering", size=30)
+plt.title("ALFRED", size=30)
 plt.grid()
 # plt.show()
 plt.savefig(

@@ -34,7 +34,7 @@ device = (
     f"cuda:{args.device}" if torch.cuda.is_available() and args.device >= 0 else "cpu"
 )
 max_episode_steps = args.step
-n_steps = args.step  # 2048
+n_steps = args.step
 
 if contextual:
     model_path = (
@@ -68,8 +68,9 @@ elif "QA" in env_name:
     )
     log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenBookQA_{answer}/"
 elif "Domain" in env_name:
-    total_timesteps = 25000
+    total_timesteps = 10000
     answer = True
+    # answer = True
     print(env_name + "-v1")
     env = gym.make(
         env_name + "-v1",
@@ -77,8 +78,16 @@ elif "Domain" in env_name:
         device=device,
         contextual=contextual,
         answer=answer,
+        replace_sample=False,
+        max_steps=n_steps,
     )
-    log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenDomain_{contextual}{answer}/"
+    tag = ""
+    if contextual:
+        tag += "_contextual"
+    if answer:
+        tag += "_answer"
+    log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenDomain{tag}/"
+
 elif "Alfred" in env_name:
     print(env_name + "-v1")
     reward_metric = "PLWGC"  # "PLWGC"
@@ -105,7 +114,7 @@ model = PPO(
     env=env,
     n_steps=n_steps,
     batch_size=n_steps,
-    verbose=1,
+    verbose=0,
     gamma=0.0,
     tensorboard_log=log_path,
     stats_window_size=int(1),
