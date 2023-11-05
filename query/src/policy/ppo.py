@@ -1,9 +1,10 @@
 ### tensorboard --logdir='./tensorboard_log/PPO_ImageNet1k' --port=6006
 ### tensorboard --logdir='./tensorboard_log/PPO_step100_OpenBookQA_True' --port=6006
 ### tensorboard --logdir='./tensorboard_log/PPO_step50_Alfred_PLWGC' --port=6006
+### tensorboard --logdir='./tensorboard_log/PPO_step5_OpenDomain_contextual_answer' --port=6006
 ### poetry run python query/src/policy/ppo.py -e ImageNet1k_CIFAR100 -d 0 -c True -i True -n 100
 ### poetry run python query/src/policy/ppo.py -d 1 -e OpenBookQA -c True -n 100
-### poetry run python query/src/policy/ppo.py -e OpenDomain -c True -n 100
+### poetry run python query/src/policy/ppo.py -e OpenDomain -c True -n 4
 ### poetry run python query/src/policy/ppo.py -e Alfred -c True -n 50
 import argparse
 
@@ -68,7 +69,7 @@ elif "QA" in env_name:
     )
     log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenBookQA_{answer}/"
 elif "Domain" in env_name:
-    total_timesteps = 10000
+    total_timesteps = 8000
     answer = True
     # answer = True
     print(env_name + "-v1")
@@ -126,3 +127,4 @@ del model  # remove to demonstrate saving and loading
 print("training completed")
 
 print(env.action_list)
+env.close()

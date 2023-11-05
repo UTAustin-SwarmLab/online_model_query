@@ -3,7 +3,7 @@ import transformers
 from transformers import AutoTokenizer
 
 model = "meta-llama/Llama-2-13b-chat-hf"
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
+device = "cuda:3" if torch.cuda.is_available() else "cpu"
 
 tokenizer = AutoTokenizer.from_pretrained(model)
 pipeline = transformers.pipeline(

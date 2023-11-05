@@ -10,20 +10,20 @@ from gymnasium import spaces
 import query.envs  # noqa: F401
 
 bandits = {
-    # 0: "vicuna-7b-v1.5",
+    0: "vicuna-7b-v1.5",
     # 1: "falcon-180B",
     2: "falcon-180B-chat",
     # 3: "qCammel-70-x",
     4: "Llama-2-70b-instruct",
     # 5: "Llama-2-70b-instruct-v2",
-    6: "StableBeluga-13B",
-    # 7: "airoboros-l2-70b",
+    # 6: "StableBeluga-13B",
+    7: "airoboros-l2-70b",
 }
 
 subset_map = json.load(open("synced_data/mmlu/subdatasets.json"))
 
 
-class OpenDomainGymEnv(gym.Env):
+class OpenDomainLatencyGymEnv(gym.Env):
     """Custom Environment that follows gym interface"""
 
     metadata = {"render_modes": ["human"]}
@@ -35,6 +35,7 @@ class OpenDomainGymEnv(gym.Env):
         device: str or torch.device = "cpu",
         contextual: bool = True,
         replace_sample: bool = False,
+        alpha: float = 0.1,
         **kwargs,
     ) -> None:
         """
@@ -44,8 +45,9 @@ class OpenDomainGymEnv(gym.Env):
             device: device to run the clip model
             contextual: whether to use contextual bandit
             replace_sample: whether to replace the sample
+            alpha: the weight of latency
         """
-        super(OpenDomainGymEnv, self).__init__()
+        super(OpenDomainLatencyGymEnv, self).__init__()
 
         ### make sure the sum of p is 1
         ### Define action and observation space with discrete actions:
@@ -56,16 +58,18 @@ class OpenDomainGymEnv(gym.Env):
 
         self.device = device
         self.answer = answer
+        self.alpha = alpha
         if self.answer:
             self.emb_size = emb_size * 3  # question, choices, answer
         else:
             self.emb_size = emb_size * 2  # question, choices
 
         self.replace_sample = replace_sample
+        # self.local_model_name = bandits[0]
         self.reward_range = (0, 1)
         self.cnt = 0
+        self.nstep = 0
         self.cumulative_reward = 0
-        self.mean_reward_dict = {}
 
         ### input is an embedding
         self.observation_space = spaces.Box(
@@ -117,13 +121,21 @@ class OpenDomainGymEnv(gym.Env):
         self.model_answer_np = (np.load("synced_data/csv/mmlu/clip_emb_answer.npy"))[
             selected_indices, :
         ]
-        print(
-            "Embeddings loaded. Shape: ",
-            self.question_np.shape,
-            self.context_np.shape,
-            self.model_answer_np.shape,
-            self.arm_results.shape,
+
+        ### load latency data
+        self.model_latency_list = []
+        self.len_model_latency = []
+        for key, value in bandits.items():
+            latency = pd.read_csv(f"synced_data/csv/mmlu/{value}_answer_time.csv")
+            latency = np.array(latency["answer_time"] + latency["load_time"])
+            print(f"Loaded: {key}, {latency.shape}")
+            self.model_latency_list.append(latency)
+            self.len_model_latency.append(len(latency))
+
+        assert n_bandits == len(self.model_latency_list), print(
+            f"n_bandits should be equal to the number of {len(self.model_latency_list)}"
         )
+        return
 
     def step(
         self,
@@ -149,7 +161,14 @@ class OpenDomainGymEnv(gym.Env):
         ### nothing is sequential here
         ### calculate reward
         current_idx = self.state
-        reward = self.arm_results[current_idx, action]
+        ### add latency
+        latency = self.model_latency_list[action][
+            current_idx % self.len_model_latency[action]
+        ]
+        reward = self.arm_results[current_idx, action] - self.alpha * latency
+        print(
+            f"reward: {reward}, acc: {self.arm_results[current_idx, action]}, latency: {latency}"
+        )
 
         ### calculate done
         terminated = False
@@ -166,7 +185,6 @@ class OpenDomainGymEnv(gym.Env):
             next_idx = self.shuffle_idx[self.cnt % self.num_samples]
         else:
             next_idx = _idx
-
         ### calculate the next observation
         if self.contextual:
             ### load the embeddings of a question and its choices and answer
@@ -194,38 +212,13 @@ class OpenDomainGymEnv(gym.Env):
 
         assert observation.shape == (self.emb_size,), f"obs shape: {observation.shape}"
 
-        ### update next state
-        self.state = next_idx  # update current idx
-        self.cnt += 1
-
         ### update action list
         self.action_list[action] += 1
         self.cumulative_reward += reward
         if self.cnt % 1000 == 0:
             print(f"step: {self.cnt}, Cum Reward", self.cumulative_reward / self.cnt)
-        if self.cnt % 5 == 0:
-            self.mean_reward_dict[self.cnt] = self.cumulative_reward / self.cnt
+
         return (observation, reward, terminated, truncated, info)
-
-        # ### update next state
-        # self.state = next_idx  # update current idx
-        # self.cnt += 1
-
-        # if not reset:
-        #     ### update action list
-        #     self.action_list[action] += 1
-        #     ### update cumulative reward
-        #     self.cumulative_reward += reward
-        #     self.nstep += 1
-        #     if self.nstep % 5 == 0:
-        #         self.mean_reward_dict[self.nstep] = self.cumulative_reward / self.nstep
-        #     if self.nstep % 1000 == 0:
-        #         print(
-        #             f"step: {self.nstep}, Cum Reward",
-        #             self.cumulative_reward / self.nstep,
-        #         )
-
-        # return (observation, reward, terminated, truncated, info)
 
     def reset(
         self,
@@ -247,6 +240,8 @@ class OpenDomainGymEnv(gym.Env):
 
         info = {}
         self.state = -1
+        # if self.cnt % 500 == 0:
+        #     print(f"reset: {self.cnt}")
         observation, reward, terminated, truncated, info = self.step(
             0, _idx=_idx, _dataset=_dataset, reset=True
         )
@@ -259,14 +254,14 @@ class OpenDomainGymEnv(gym.Env):
         df = pd.DataFrame(columns=["Step", "mean_reward"])
         df["Step"] = self.mean_reward_dict.keys()
         df["mean_reward"] = self.mean_reward_dict.values()
-        df.to_csv("synced_data/cumulative_reward/mmlu_step5.csv", index=False)
+        df.to_csv("synced_data/cumulative_reward/mmlu_latency_step5.csv", index=False)
         return super().close()
 
 
 # test emv with main function
 if __name__ == "__main__":
     # Create the Gym environment
-    env = OpenDomainGymEnv(answer=True, contextual=False, exact_match=True)
+    env = OpenDomainLatencyGymEnv(answer=True, contextual=False, exact_match=True)
     random = True
 
     # Reset the environment
@@ -276,14 +271,16 @@ if __name__ == "__main__":
     total_reward = 0
 
     if random:
-        for i in range(10000):
+        for i in range(5000):
             cnt += 1
             action = env.action_space.sample()
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
             mean_reward = total_reward / cnt
-            if cnt % 1000 == 0:
+            if cnt % 500 == 0:
                 print(cnt)
+                # print(obs)
+                # print(reward, terminated, truncated, info)
                 print(mean_reward)
     else:
         ### test trained model

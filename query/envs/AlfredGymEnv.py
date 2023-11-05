@@ -141,7 +141,7 @@ class AlfredGymEnv(gym.Env):
                 arm_results[3, :, :]
                 / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
             )
-        elif reward_metric == "gc and plw":
+        elif reward_metric == "GC+PLW":
             gc = arm_results[1, :, :]
             plw = arm_results[1, :, :] * (
                 arm_results[3, :, :]
