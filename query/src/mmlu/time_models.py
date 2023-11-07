@@ -11,9 +11,9 @@ from transformers import AutoTokenizer, pipeline  # noqa: F401
 warnings.filterwarnings("ignore")
 # model = "lmsys/vicuna-7b-v1.5"
 # model = "jondurbin/airoboros-l2-70b-3.1.2"
-# model = "stabilityai/StableBeluga-13B"
+model = "stabilityai/StableBeluga-13B"
 # model = "upstage/Llama-2-70b-instruct"
-model = "tiiuae/falcon-180B-chat"
+# model = "tiiuae/falcon-180B-chat"
 
 # device = "cuda:0" if torch.cuda.is_available() else "cpu"
 

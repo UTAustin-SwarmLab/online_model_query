@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torchvision
+from clip.simple_tokenizer import SimpleTokenizer
 
 torchvision.__version__
 
@@ -17,8 +18,6 @@ print(args)
 
 ### download nltk resources
 nltk.download("punkt")
-# print(clip.available_models())
-# input()
 
 batch_size = 128
 device = (
@@ -33,11 +32,16 @@ mmlu_data.fillna(value="No response.", inplace=True)
 model, preprocess = clip.load(
     "ViT-L/14@336px", jit=False, device=device
 )  # ViT-L/14@336px, ViT-B/32
+# print(clip.available_models())
+
+tokenizer = SimpleTokenizer()
 
 idx = 0
 q_list = []
 c_list = []
 a_list = []
+q_len = []
+a_len = []
 
 ### returns samples, then answer, score, start, end
 for idx, row in mmlu_data.iterrows():
@@ -51,6 +55,12 @@ for idx, row in mmlu_data.iterrows():
     token = clip.tokenize([question, choices, answer], truncate=True).to(
         device
     )  # shape = [3, 77]
+
+    input_length = len(tokenizer.encode(question + choices))
+    q_len.append(input_length)
+    answer_length = len(tokenizer.encode(answer))
+    a_len.append(answer_length)
+
     emb = model.encode_text(token)  # shape = [3, 512]
 
     q_list.append(emb[0].cpu().detach().numpy())
@@ -69,3 +79,11 @@ np.save("./synced_data/csv/mmlu/clip_emb_choices.npy", c_list)
 a_list = np.array(a_list)
 print(a_list.shape)
 np.save("./synced_data/csv/mmlu/clip_emb_answer.npy", a_list)
+
+q_len = np.array(q_len)
+print(q_len.shape)
+np.save("./synced_data/csv/mmlu/question_token_length.npy", q_len)
+
+a_len = np.array(a_len)
+print(a_len.shape)
+np.save("./synced_data/csv/mmlu/answer_token_length.npy", a_len)

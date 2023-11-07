@@ -16,8 +16,8 @@ bandits = {
     # 3: "qCammel-70-x",
     4: "Llama-2-70b-instruct",
     # 5: "Llama-2-70b-instruct-v2",
-    # 6: "StableBeluga-13B",
-    7: "airoboros-l2-70b",
+    6: "StableBeluga-13B",
+    # 7: "airoboros-l2-70b",
 }
 
 subset_map = json.load(open("synced_data/mmlu/subdatasets.json"))

@@ -17,7 +17,7 @@ bandits = {
     4: "Llama-2-70b-instruct",
     # 5: "Llama-2-70b-instruct-v2",
     6: "StableBeluga-13B",
-    # 7: "airoboros-l2-70b",
+    7: "airoboros-l2-70b",
 }
 
 subset_map = json.load(open("synced_data/mmlu/subdatasets.json"))
@@ -102,6 +102,17 @@ class OpenDomainGymEnv(gym.Env):
         )
         self.arm_results = self.arm_results[selected_indices, :]
         self.arm_results = self.arm_results[:, model_idx]
+
+        ### calculate optimal reward
+        opt_ = self.arm_results.max(axis=1)  # shape: (dataset_size, )
+        opt_avg = opt_.mean()
+        opt_ = np.cumsum(opt_) / (np.arange(opt_.shape[0]) + 1)
+        print("Optimal mean reward: ", opt_avg)
+        print("Overall best arm: ", self.arm_results.mean(axis=0).argmax())
+        print("Best arm reward: ", self.arm_results.mean(axis=0).max())
+        print("Overall worst arm: ", self.arm_results.mean(axis=0).argmin())
+        print("Worst arm reward: ", self.arm_results.mean(axis=0).min())
+        print("arms: ", self.arm_results.mean(axis=0))
 
         assert self.arm_results.shape[1] == n_bandits, print(
             f"n_bandits should be equal to the number of {self.arm_results.shape[1]}"
@@ -306,4 +317,4 @@ if __name__ == "__main__":
             obs, reward, terminated, truncated, info = env.step(action, _idx=idx)
             idx_a_list.append((idx, action))
 
-    env.close()
+    # env.close()
