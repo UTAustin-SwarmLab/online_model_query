@@ -54,7 +54,7 @@ for obj in DETECT_OBJ:
     input_length = len(tokenizer.encode(question))
     q_len.append(input_length)
 
-    emb = model.encode_text(token)  # shape = [1, 512]
+    emb = model.encode_text(token)  # shape = [1, 768]
     q_list.append(emb[0].cpu().detach().numpy())
 
 ### save lists

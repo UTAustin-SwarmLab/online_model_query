@@ -18,8 +18,10 @@ for model in bandits.values():
 
 ### save inference results (y) to np arrays
 acc_np = []
+time_np = []
 for idx_row in range(dataset_size):
     acc_arms = []
+    time_arms = []
     for model in bandits.values():
         row = dfs[model].iloc[idx_row, :]
         time = row["inference time"]
@@ -27,12 +29,15 @@ for idx_row in range(dataset_size):
         if cnt > 0:
             acc = 1 if "Yes" in str(row["caption"])[:3] else 0
         else:
-            acc = 1 if "no" in str(row["caption"])[:2] else 0
+            acc = 1 if "No" in str(row["caption"])[:2] else 0
         acc_arms.append(acc)
+        time_arms.append(time)
     acc_np.append(acc_arms)
-    print(idx_row, acc_np)
-    input()
+    time_np.append(time_arms)
 
 acc_np = np.array(acc_np)
 print(acc_np.shape)
-np.save("./synced_data/csv/waymo/models_acc.npy", acc_np)
+np.save("./synced_data/csv/waymo/arm_results.npy", acc_np)
+time_np = np.array(time_np)
+print(time_np.shape)
+np.save("./synced_data/csv/waymo/arm_results_time.npy", time_np)

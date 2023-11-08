@@ -36,6 +36,7 @@ class OpenDomainLatencyGymEnv(gym.Env):
         contextual: bool = True,
         replace_sample: bool = False,
         alpha: float = 0.1,
+        beta: float = 0.02 / 1000,
         **kwargs,
     ) -> None:
         """
@@ -46,6 +47,7 @@ class OpenDomainLatencyGymEnv(gym.Env):
             contextual: whether to use contextual bandit
             replace_sample: whether to replace the sample
             alpha: the weight of latency
+            beta: the weight of token costs. OpenAI, the cost is $0.02/1000 tokens
         """
         super(OpenDomainLatencyGymEnv, self).__init__()
 
@@ -58,7 +60,6 @@ class OpenDomainLatencyGymEnv(gym.Env):
 
         self.device = device
         self.answer = answer
-        self.alpha = alpha
         if self.answer:
             self.emb_size = emb_size * 3  # question, choices, answer
         else:
@@ -70,6 +71,7 @@ class OpenDomainLatencyGymEnv(gym.Env):
         self.cnt = 0
         self.nstep = 0
         self.cumulative_reward = 0
+        self.mean_reward_dict = {}
 
         ### input is an embedding
         self.observation_space = spaces.Box(
@@ -86,7 +88,6 @@ class OpenDomainLatencyGymEnv(gym.Env):
                 selected_indices.append(idx)
                 self.subsets.append(row["subdataset"])
             idx += 1
-        print(f"selected indices: {len(selected_indices)}")
 
         ### shuffle the arm results
         np.random.seed(42)
@@ -100,10 +101,6 @@ class OpenDomainLatencyGymEnv(gym.Env):
         self.arm_results = np.load(
             "synced_data/csv/mmlu/models_accnorm.npy"
         )  # shape = [25256, 8]
-        print(
-            f"Arm results shape: {self.arm_results.shape}",
-            model_idx,
-        )
         self.arm_results = self.arm_results[selected_indices, :]
         self.arm_results = self.arm_results[:, model_idx]
 
@@ -123,18 +120,41 @@ class OpenDomainLatencyGymEnv(gym.Env):
         ]
 
         ### load latency data
-        self.model_latency_list = []
-        self.len_model_latency = []
+        self.model_latency = np.zeros_like(self.arm_results)
+        idx = 0
         for key, value in bandits.items():
             latency = pd.read_csv(f"synced_data/csv/mmlu/{value}_answer_time.csv")
             latency = np.array(latency["answer_time"] + latency["load_time"])
-            print(f"Loaded: {key}, {latency.shape}")
-            self.model_latency_list.append(latency)
-            self.len_model_latency.append(len(latency))
+            repeat_cnt = self.arm_results.shape[0] // len(latency) + 1
+            latency = np.tile(latency, repeat_cnt)
+            self.model_latency[:, idx] = latency[selected_indices]
+            idx += 1
 
-        assert n_bandits == len(self.model_latency_list), print(
-            f"n_bandits should be equal to the number of {len(self.model_latency_list)}"
+        ### load token costs
+        self.token_costs = np.zeros_like(self.arm_results)
+        token_length = np.load(
+            "synced_data/csv/mmlu/question_token_length.npy"
+        ) + np.load("./synced_data/csv/mmlu/answer_token_length.npy")
+        self.token_costs[:, 1:] = token_length[selected_indices, np.newaxis]
+
+        ### add acc and latency
+        self.reward = (
+            self.arm_results
+            - alpha * np.log10(self.model_latency)
+            - beta * self.token_costs
         )
+        print(
+            f"reward = {self.arm_results[0]} - {alpha * np.log10(self.model_latency[0])} - {beta*self.token_costs[0]}"
+        )
+
+        ### calculate optimal reward
+        opt_ = self.reward.max(axis=1)  # shape: (dataset_size, )
+        opt_avg = opt_.mean()
+        opt_ = np.cumsum(opt_) / (np.arange(opt_.shape[0]) + 1)
+        print("Optimal mean reward: ", opt_avg)
+        print("Best arm reward: ", self.reward.mean(axis=0).max())
+        print("Worst arm reward: ", self.reward.mean(axis=0).min())
+        print("arms: ", self.reward.mean(axis=0))
         return
 
     def step(
@@ -161,14 +181,7 @@ class OpenDomainLatencyGymEnv(gym.Env):
         ### nothing is sequential here
         ### calculate reward
         current_idx = self.state
-        ### add latency
-        latency = self.model_latency_list[action][
-            current_idx % self.len_model_latency[action]
-        ]
-        reward = self.arm_results[current_idx, action] - self.alpha * latency
-        print(
-            f"reward: {reward}, acc: {self.arm_results[current_idx, action]}, latency: {latency}"
-        )
+        reward = self.reward[current_idx, action]
 
         ### calculate done
         terminated = False
@@ -212,12 +225,17 @@ class OpenDomainLatencyGymEnv(gym.Env):
 
         assert observation.shape == (self.emb_size,), f"obs shape: {observation.shape}"
 
+        ### update next state
+        self.state = next_idx  # update current idx
+        self.cnt += 1
+
         ### update action list
         self.action_list[action] += 1
         self.cumulative_reward += reward
         if self.cnt % 1000 == 0:
             print(f"step: {self.cnt}, Cum Reward", self.cumulative_reward / self.cnt)
-
+        if self.cnt % 5 == 0:
+            self.mean_reward_dict[self.cnt] = self.cumulative_reward / self.cnt
         return (observation, reward, terminated, truncated, info)
 
     def reset(
@@ -247,7 +265,7 @@ class OpenDomainLatencyGymEnv(gym.Env):
         )
         return observation, info
 
-    def close(self):
+    def save_cum_reward(self):
         ### save mean reward dict as csv
         print("Saving mean reward dict...")
         # create an empty DataFrame
@@ -255,6 +273,10 @@ class OpenDomainLatencyGymEnv(gym.Env):
         df["Step"] = self.mean_reward_dict.keys()
         df["mean_reward"] = self.mean_reward_dict.values()
         df.to_csv("synced_data/cumulative_reward/mmlu_latency_step5.csv", index=False)
+        return
+
+    def close(self):
+        self.save_cum_reward()
         return super().close()
 
 

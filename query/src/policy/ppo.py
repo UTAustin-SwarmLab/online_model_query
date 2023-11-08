@@ -6,6 +6,7 @@
 ### poetry run python query/src/policy/ppo.py -d 1 -e OpenBookQA -c True -n 100
 ### poetry run python query/src/policy/ppo.py -e OpenDomain -c True -n 4
 ### poetry run python query/src/policy/ppo.py -e Alfred -c True -n 50
+### poetry run python query/src/policy/ppo.py -e Waymo -c True -n 50
 import argparse
 
 import gymnasium as gym
@@ -88,26 +89,39 @@ elif "Domain" in env_name:
     if answer:
         tag += "_answer"
     log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenDomain{tag}/"
-
 elif "Alfred" in env_name:
     print(env_name + "-v1")
-    reward_metric = "PLWGC"  # "PLWGC"
+    reward_metric = "SR"  # "PLWGC"
     total_timesteps = 13000
     env = gym.make(
         env_name + "-v1",
         max_episode_steps=max_episode_steps,
         device=device,
         contextual=contextual,
-        low_level=True,
-        floor_plan=False,
+        low_level=False,
+        floor_plan=True,
         replace=False,
         reward_metric=reward_metric,
     )
     log_path = f"./tensorboard_log/PPO_step{n_steps}_Alfred_{reward_metric}/"
+elif "Waymo" in env_name:
+    total_timesteps = 15000
+    env = gym.make(
+        env_name + "-v1",
+        max_episode_steps=max_episode_steps,
+        device=device,
+        contextual=contextual,
+        text=True,
+        replace=False,
+    )
+    log_path = f"./tensorboard_log/PPO_step{n_steps}_Waymo/"
 else:
     raise ValueError("env_name not found: " + env_name)
 
-### load and then train model if it exists
+### train agent model
+### hyperparameters of PPO to tune:
+# target_kl: 0.1
+# ent_coef
 policy = "MlpPolicy" if not args.return_image else "CnnPolicy"
 model = PPO(
     policy,

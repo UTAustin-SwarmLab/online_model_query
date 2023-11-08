@@ -61,8 +61,10 @@ class AlfredGymEnv(gym.Env):
         self.replace_sample = replace_sample
         self.cnt = 0
         self.cumulative_reward = 0
+        self.mean_reward_dict = {}
         self.low_level = low_level
         self.floor_plan = floor_plan
+        self.reward_metric = reward_metric
 
         ### input is an embedding
         self.observation_space = spaces.Box(
@@ -161,6 +163,16 @@ class AlfredGymEnv(gym.Env):
         self.ll_instruct_np = emb[:, emb_size : emb_size * 4]
         self.floorplan_np = emb[:, emb_size * 4 :]
 
+        opt_ = self.arm_results.max(axis=1)
+        opt_avg = opt_.mean()
+        opt_ = np.cumsum(opt_) / (np.arange(opt_.shape[0]) + 1)
+        print("Optimal mean reward: ", opt_avg)
+        print("Best arm reward: ", self.arm_results.mean(axis=0).max())
+        print("Worst arm reward: ", self.arm_results.mean(axis=0).min())
+        print("arms: ", self.arm_results.mean(axis=0))
+
+        return
+
     def step(
         self, action: int, _idx: int = None
     ) -> Tuple[np.ndarray, float, bool, bool, dict]:
@@ -230,7 +242,8 @@ class AlfredGymEnv(gym.Env):
         self.cumulative_reward += reward
         if self.cnt % 1000 == 0:
             print(f"step: {self.cnt}, Cum Reward", self.cumulative_reward / self.cnt)
-
+        if self.cnt % 5 == 0:
+            self.mean_reward_dict[self.cnt] = self.cumulative_reward / self.cnt
         return (observation, reward, terminated, truncated, info)
 
     def reset(
@@ -252,13 +265,29 @@ class AlfredGymEnv(gym.Env):
 
         info = {}
         self.state = -1
-        print(f"reset: {self.cnt}")
+        # print(f"reset: {self.cnt}")
         observation, _, _, _, info = self.step(
             0,
             _idx=_idx,
         )
         self.cnt -= 1  ### Bug...
         return observation, info
+
+    def save_cum_reward(self):
+        ### save mean reward dict as csv
+        print("Saving mean reward dict...")
+        # create an empty DataFrame
+        df = pd.DataFrame(columns=["Step", "mean_reward"])
+        df["Step"] = self.mean_reward_dict.keys()
+        df["mean_reward"] = self.mean_reward_dict.values()
+        df.to_csv(
+            f"synced_data/cumulative_reward/alfred_{self.reward_metric}_step5.csv"
+        )
+        return
+
+    def close(self):
+        self.save_cum_reward()
+        return super().close()
 
 
 # test emv with main function

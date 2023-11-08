@@ -2,6 +2,7 @@ from typing import Tuple
 
 import gymnasium as gym
 import numpy as np
+import pandas as pd
 import torch
 from gymnasium import spaces
 
@@ -27,6 +28,7 @@ class WaymoGymEnv(gym.Env):
         emb_size: int = 768,
         device: str or torch.device = "cpu",
         contextual: bool = False,
+        text: bool = True,
         replace_sample: bool = True,
         **kwargs,
     ) -> None:
@@ -35,6 +37,7 @@ class WaymoGymEnv(gym.Env):
             emb_size: size of the embedding
             device: device to run the clip model
             contextual: whether to use contextual bandit
+            text: whether to use text as the observation
             replace_sample: whether to replace the sample
         """
         super(WaymoGymEnv, self).__init__()
@@ -44,14 +47,16 @@ class WaymoGymEnv(gym.Env):
         n_bandits = len(bandits)
         self.action_space = spaces.Discrete(n_bandits)
         self.contextual = contextual
+        self.text = text
         self.action_list = [0 for _ in range(n_bandits)]
 
         self.device = device
-        self.emb_size = emb_size  # instruction + low level instruction + floorplan
+        self.emb_size = emb_size * 2  # question + image
 
         self.replace_sample = replace_sample
         self.cnt = 0
         self.cumulative_reward = 0
+        self.mean_reward_dict = {}
 
         ### input is an embedding
         self.observation_space = spaces.Box(
@@ -59,31 +64,25 @@ class WaymoGymEnv(gym.Env):
         )
 
         ### load embeddings
-        emb = np.load(data_path + "clip_emb.npy")
-        arm_results = np.load(data_path + "arm_results.npy")
+        self.q_emb = np.load(data_path + "clip_emb_question.npy")  # 10x768
+        self.img_emb = np.load(data_path + "clip_emb_img.npy")  # 10x768
+        self.arm_results = np.load(data_path + "arm_results.npy")
+
         print("loaded data")
 
-        if reward_metric == "GC":
-            self.arm_results = arm_results[1, :, :]
-        elif reward_metric == "PLWGC":
-            self.arm_results = arm_results[1, :, :] * (
-                arm_results[3, :, :]
-                / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
-            )
-        elif reward_metric == "SR":
-            self.arm_results = arm_results[0, :, :]
-        elif reward_metric == "PLWSR":
-            self.arm_results = arm_results[0, :, :] * (
-                arm_results[3, :, :]
-                / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
-            )
-        elif reward_metric == "GC+PLW":
-            gc = arm_results[1, :, :]
-            plw = arm_results[1, :, :] * (
-                arm_results[3, :, :]
-                / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
-            )
-            self.arm_results = 0.5 * gc + 0.5 * plw
+        ### calculate optimal reward
+        opt_ = self.arm_results.max(axis=1)  # shape: (dataset_size, )
+        opt_avg = opt_.mean()
+        opt_ = np.cumsum(opt_) / (np.arange(opt_.shape[0]) + 1)
+        print("Optimal mean reward: ", opt_avg)
+        print("Best arm reward: ", self.arm_results.mean(axis=0).max())
+        print("Worst arm reward: ", self.arm_results.mean(axis=0).min())
+        print("arms: ", self.arm_results.mean(axis=0))
+        input("Press Enter to continue...")
+
+        assert self.arm_results.shape[1] == n_bandits, print(
+            f"n_bandits should be equal to the number of {self.arm_results.shape[1]}"
+        )
 
         ### shuffle the arm results
         np.random.seed(42)
@@ -91,11 +90,6 @@ class WaymoGymEnv(gym.Env):
         self.shuffle_idx = np.random.choice(
             np.arange(self.num_samples), self.num_samples, replace=self.replace_sample
         )
-
-        ### load embeddings
-        self.instruct_np = emb[:, :emb_size]
-        self.ll_instruct_np = emb[:, emb_size : emb_size * 4]
-        self.floorplan_np = emb[:, emb_size * 4 :]
 
     def step(
         self, action: int, _idx: int = None
@@ -137,21 +131,14 @@ class WaymoGymEnv(gym.Env):
 
         ### calculate the next observation
         if self.contextual:
-            ### load the embeddings of a question and its choices and answer
-            obs_np = []
-            instruct_emb = self.instruct_np[next_idx, :]
-            obs_np.append(instruct_emb)
-            if self.low_level:
-                ll_instruct_emb = self.ll_instruct_np[next_idx, :]
-                obs_np.append(ll_instruct_emb)
-            if self.floor_plan:
-                floorplan_emb = self.floorplan_np[next_idx, :]
-                obs_np.append(floorplan_emb)
-            observation = np.concatenate(
-                obs_np,
-                axis=0,
-                dtype="float32",
-            )
+            if self.text:
+                q_idx = next_idx % 10
+                img_idx = next_idx // 10
+                q_emb = self.q_emb[q_idx, :]
+                img_emb = self.img_emb[img_idx]
+                observation = np.concatenate((q_emb, img_emb)).astype("float32")
+            else:
+                observation = self.img_emb[next_idx].astype("float32")
         else:
             observation = np.ones((self.emb_size,), dtype="float32")
 
@@ -166,7 +153,8 @@ class WaymoGymEnv(gym.Env):
         self.cumulative_reward += reward
         if self.cnt % 1000 == 0:
             print(f"step: {self.cnt}, Cum Reward", self.cumulative_reward / self.cnt)
-
+        if self.cnt % 5 == 0:
+            self.mean_reward_dict[self.cnt] = self.cumulative_reward / self.cnt
         return (observation, reward, terminated, truncated, info)
 
     def reset(
@@ -196,11 +184,25 @@ class WaymoGymEnv(gym.Env):
         self.cnt -= 1  ### Bug...
         return observation, info
 
+    def save_cum_reward(self):
+        ### save mean reward dict as csv
+        print("Saving mean reward dict...")
+        # create an empty DataFrame
+        df = pd.DataFrame(columns=["Step", "mean_reward"])
+        df["Step"] = self.mean_reward_dict.keys()
+        df["mean_reward"] = self.mean_reward_dict.values()
+        df.to_csv("synced_data/cumulative_reward/waymo_step5.csv", index=False)
+        return
+
+    def close(self):
+        self.save_cum_reward()
+        return super().close()
+
 
 # test emv with main function
 if __name__ == "__main__":
     # Create the Gym environment
-    env = WaymoGymEnv(low_level=True, floor_plan=True, contextual=True)
+    env = WaymoGymEnv(contextual=True)
     random = True
 
     # Reset the environment
@@ -210,10 +212,9 @@ if __name__ == "__main__":
     total_reward = 0
 
     if random:
-        for i in range(50000):
+        for i in range(10000):
             cnt += 1
             action = env.action_space.sample()
-            # action = 5
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
             mean_reward = total_reward / cnt
