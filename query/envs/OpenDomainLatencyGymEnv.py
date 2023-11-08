@@ -47,7 +47,7 @@ class OpenDomainLatencyGymEnv(gym.Env):
             contextual: whether to use contextual bandit
             replace_sample: whether to replace the sample
             alpha: the weight of latency
-            beta: the weight of token costs. OpenAI, the cost is $0.02/1000 tokens
+            beta: the weight of token costs. For OpenAI, the cost is $0.02/1000 tokens
         """
         super(OpenDomainLatencyGymEnv, self).__init__()
 
@@ -131,20 +131,20 @@ class OpenDomainLatencyGymEnv(gym.Env):
             idx += 1
 
         ### load token costs
-        self.token_costs = np.zeros_like(self.arm_results)
+        self.token_len = np.zeros_like(self.arm_results)
         token_length = np.load(
             "synced_data/csv/mmlu/question_token_length.npy"
         ) + np.load("./synced_data/csv/mmlu/answer_token_length.npy")
-        self.token_costs[:, 1:] = token_length[selected_indices, np.newaxis]
+        self.token_len[:, 1:] = token_length[selected_indices, np.newaxis]
 
         ### add acc and latency
         self.reward = (
             self.arm_results
             - alpha * np.log10(self.model_latency)
-            - beta * self.token_costs
+            - beta * self.token_len
         )
         print(
-            f"reward = {self.arm_results[0]} - {alpha * np.log10(self.model_latency[0])} - {beta*self.token_costs[0]}"
+            f"reward = {self.arm_results[0]} - {alpha * np.log10(self.model_latency[0])} - {beta*self.token_len[0]}"
         )
 
         ### calculate optimal reward

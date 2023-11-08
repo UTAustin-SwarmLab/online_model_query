@@ -18,7 +18,7 @@ data_path = "synced_data/csv/waymo/"
 dataset_size = 20000
 
 
-class WaymoGymEnv(gym.Env):
+class WaymoLatencyGymEnv(gym.Env):
     """Custom Environment that follows gym interface"""
 
     metadata = {"render_modes": ["human"]}
@@ -30,6 +30,8 @@ class WaymoGymEnv(gym.Env):
         contextual: bool = False,
         text: bool = True,
         replace_sample: bool = True,
+        alpha: float = 0.5,
+        beta: float = 0.02 / 1000,
         **kwargs,
     ) -> None:
         """
@@ -39,8 +41,16 @@ class WaymoGymEnv(gym.Env):
             contextual: whether to use contextual bandit
             text: whether to use text as the observation
             replace_sample: whether to replace the sample
+            alpha: the weight of latency
+            beta: the weight of token costs. For OpenAI, the cost is $0.02/1000 tokens
+
+            Note:
+            A 1920x1080 image with 3-byte pixels is approximately 6.22 megabytes (MB).
+            This is because each pixel uses 3 bytes.
+            5G home internet commonly gives you speeds around 100~300 Mbps.
+            Thus, the transmission time is 6.22MB * 8 / 300Mbps = 0.166s
         """
-        super(WaymoGymEnv, self).__init__()
+        super(WaymoLatencyGymEnv, self).__init__()
 
         ### make sure the sum of p is 1
         ### Define action and observation space with discrete actions:
@@ -65,24 +75,48 @@ class WaymoGymEnv(gym.Env):
 
         ### load embeddings
         self.q_emb = np.load(data_path + "clip_emb_question.npy")  # 10x768
+        self.q_emb = np.repeat(self.q_emb, 2000, axis=0)  # 20000x768
+        self.token_len = np.load(data_path + "question_token_length.npy")  # 10
+        self.token_len = np.tile(self.token_len, 2000)
+        self.token_len = self.token_len.reshape(dataset_size, 1)  # 20000x1
+        self.token_len = np.repeat(self.token_len, 3, axis=1)  # 20000x3
+        self.token_len[:, 0] = 0  # no need to pay for the token cost
         self.img_emb = np.load(data_path + "clip_emb_img.npy")  # 2000x768
-        self.arm_results = np.load(data_path + "arm_results.npy")
+        self.img_emb = np.repeat(self.img_emb, 10, axis=0)
+        self.arm_results = np.load(data_path + "arm_results.npy")  # 20000x3
+        self.model_latency = np.load(data_path + "arm_results_time.npy")  # 20000x3
+        assert self.q_emb.shape == self.img_emb.shape, print(
+            f"q and img shape: {self.q_emb.shape} != {self.img_emb.shape}"
+        )
+        assert self.token_len.shape == self.arm_results.shape, print(
+            f"token_len shape 0: {self.token_len.shape} should be {self.arm_results.shape}"
+        )
 
-        print("loaded data")
+        ### add image transmission time
+        self.model_latency[:, 1:] += 0.166 * 2
+
+        ### add acc and latency
+        self.reward = (
+            self.arm_results
+            - alpha * np.log10(self.model_latency)
+            - beta * self.token_len * 2
+        )
+        print(
+            f"reward = {self.arm_results[0]} - {alpha*np.log10(self.model_latency[0])} - {beta*self.token_len[0]*2}"
+        )
+        print("Model latency average: ", np.mean(self.model_latency, axis=0))
+        print("Model acc average: ", np.mean(self.arm_results, axis=0))
+        print("Model token cost average: ", np.mean(self.token_len, axis=0))
 
         ### calculate optimal reward
-        opt_ = self.arm_results.max(axis=1)  # shape: (dataset_size, )
+        opt_ = self.reward.max(axis=1)  # shape: (dataset_size, )
         opt_avg = opt_.mean()
         opt_ = np.cumsum(opt_) / (np.arange(opt_.shape[0]) + 1)
         print("Optimal mean reward: ", opt_avg)
-        print("Best arm reward: ", self.arm_results.mean(axis=0).max())
-        print("Worst arm reward: ", self.arm_results.mean(axis=0).min())
-        print("arms: ", self.arm_results.mean(axis=0))
+        print("Best arm reward: ", self.reward.mean(axis=0).max())
+        print("Worst arm reward: ", self.reward.mean(axis=0).min())
+        print("arms: ", self.reward.mean(axis=0))
         input("Press Enter to continue...")
-
-        assert self.arm_results.shape[1] == n_bandits, print(
-            f"n_bandits should be equal to the number of {self.arm_results.shape[1]}"
-        )
 
         ### shuffle the arm results
         np.random.seed(42)
@@ -193,7 +227,7 @@ class WaymoGymEnv(gym.Env):
         df = pd.DataFrame(columns=["Step", "mean_reward"])
         df["Step"] = self.mean_reward_dict.keys()
         df["mean_reward"] = self.mean_reward_dict.values()
-        df.to_csv("synced_data/cumulative_reward/waymo_step5.csv", index=False)
+        df.to_csv("synced_data/cumulative_reward/waymo_latency_step5.csv", index=False)
         return
 
     def close(self):
@@ -204,7 +238,7 @@ class WaymoGymEnv(gym.Env):
 # test emv with main function
 if __name__ == "__main__":
     # Create the Gym environment
-    env = WaymoGymEnv(contextual=True)
+    env = WaymoLatencyGymEnv(contextual=True)
     random = True
 
     # Reset the environment

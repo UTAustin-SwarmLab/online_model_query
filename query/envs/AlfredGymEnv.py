@@ -34,6 +34,7 @@ class AlfredGymEnv(gym.Env):
         floor_plan: bool = True,
         replace_sample: bool = True,
         reward_metric: str = "GC",
+        beta: float = 0.002,
         **kwargs,
     ) -> None:
         """
@@ -41,7 +42,11 @@ class AlfredGymEnv(gym.Env):
             emb_size: size of the embedding
             device: device to run the clip model
             contextual: whether to use contextual bandit
+            low_level: whether to use low level instruction
+            floor_plan: whether to use floor plan
             replace_sample: whether to replace the sample
+            reward_metric: the reward metric to use
+            beta: the beta parameter for the token cost
         """
         super(AlfredGymEnv, self).__init__()
 
@@ -129,6 +134,14 @@ class AlfredGymEnv(gym.Env):
             arm_results = np.load(data_path + "arm_results.npy")
             print("loaded data")
 
+        ### load token length
+        token_len = np.load(data_path + "instruct_token_length.npy")  # (13128,)
+        if low_level:
+            token_len += np.load(data_path + "low_instruct_token_length.npy")
+        token_len = token_len.reshape(dataset_size, 1)  # (13128, 1)
+        token_len = np.repeat(token_len, len(bandits), axis=1)  # (39384, 3)
+        token_len[:, 0] = 0
+
         if reward_metric == "GC":
             self.arm_results = arm_results[1, :, :]
         elif reward_metric == "PLWGC":
@@ -149,7 +162,9 @@ class AlfredGymEnv(gym.Env):
                 arm_results[3, :, :]
                 / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
             )
-            self.arm_results = 0.5 * gc + 0.5 * plw
+            print(gc.shape, plw.shape, token_len.shape)
+            print(beta * token_len[0:15])
+            self.arm_results = 0.5 * gc + 0.5 * plw + beta * token_len
 
         ### shuffle the arm results
         np.random.seed(42)
@@ -170,6 +185,7 @@ class AlfredGymEnv(gym.Env):
         print("Best arm reward: ", self.arm_results.mean(axis=0).max())
         print("Worst arm reward: ", self.arm_results.mean(axis=0).min())
         print("arms: ", self.arm_results.mean(axis=0))
+        input("Press Enter to continue...")
 
         return
 
@@ -293,7 +309,12 @@ class AlfredGymEnv(gym.Env):
 # test emv with main function
 if __name__ == "__main__":
     # Create the Gym environment
-    env = AlfredGymEnv(low_level=True, floor_plan=True, contextual=True)
+    env = AlfredGymEnv(
+        low_level=False,
+        floor_plan=True,
+        contextual=True,
+        reward_metric="GC+PLW",
+    )
     random = True
 
     # Reset the environment
