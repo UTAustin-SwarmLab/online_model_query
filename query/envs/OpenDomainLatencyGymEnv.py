@@ -1,5 +1,4 @@
-import os
-import pickle
+import json
 from typing import Tuple
 
 import gymnasium as gym
@@ -11,16 +10,20 @@ from gymnasium import spaces
 import query.envs  # noqa: F401
 
 bandits = {
-    0: "FILM",
-    1: "HiTUT",
-    2: "HLSM",
+    0: "vicuna-7b-v1.5",
+    # 1: "falcon-180B",
+    2: "falcon-180B-chat",
+    # 3: "qCammel-70-x",
+    4: "Llama-2-70b-instruct",
+    # 5: "Llama-2-70b-instruct-v2",
+    6: "StableBeluga-13B",
+    # 7: "airoboros-l2-70b",
 }
 
-data_path = "synced_data/csv/alfred_data/"
-dataset_size = 13128
+subset_map = json.load(open("synced_data/mmlu/subdatasets.json"))
 
 
-class AlfredGymEnv(gym.Env):
+class OpenDomainLatencyGymEnv(gym.Env):
     """Custom Environment that follows gym interface"""
 
     metadata = {"render_modes": ["human"]}
@@ -28,22 +31,25 @@ class AlfredGymEnv(gym.Env):
     def __init__(
         self,
         emb_size: int = 768,
+        answer: bool = False,
         device: str or torch.device = "cpu",
         contextual: bool = True,
-        low_level: bool = True,
-        floor_plan: bool = True,
-        replace_sample: bool = True,
-        reward_metric: str = "GC",
+        replace_sample: bool = False,
+        alpha: float = 0.1,
+        beta: float = 0.02 / 1000,
         **kwargs,
     ) -> None:
         """
         Args:
             emb_size: size of the embedding
+            answer: whether to use the local model's answer as part of the observation
             device: device to run the clip model
             contextual: whether to use contextual bandit
             replace_sample: whether to replace the sample
+            alpha: the weight of latency
+            beta: the weight of token costs. OpenAI, the cost is $0.02/1000 tokens
         """
-        super(AlfredGymEnv, self).__init__()
+        super(OpenDomainLatencyGymEnv, self).__init__()
 
         ### make sure the sum of p is 1
         ### Define action and observation space with discrete actions:
@@ -53,133 +59,116 @@ class AlfredGymEnv(gym.Env):
         self.action_list = [0 for _ in range(n_bandits)]
 
         self.device = device
-        size = int(1 + 3 * low_level + 1 * floor_plan)
-        self.emb_size = (
-            emb_size * size
-        )  # instruction + low level instruction + floorplan
+        self.answer = answer
+        if self.answer:
+            self.emb_size = emb_size * 3  # question, choices, answer
+        else:
+            self.emb_size = emb_size * 2  # question, choices
 
         self.replace_sample = replace_sample
+        # self.local_model_name = bandits[0]
+        self.reward_range = (0, 1)
         self.cnt = 0
+        self.nstep = 0
         self.cumulative_reward = 0
         self.mean_reward_dict = {}
-        self.low_level = low_level
-        self.floor_plan = floor_plan
-        self.reward_metric = reward_metric
 
         ### input is an embedding
         self.observation_space = spaces.Box(
             -np.inf, np.inf, shape=(self.emb_size,), dtype="float32"
         )
 
-        ### load embeddings
-        if not (
-            os.path.isfile(data_path + "clip_emb.npy")
-            or os.path.isfile(data_path + "arm_results.npy")
-        ):
-            instruction_dict = pickle.load(
-                open(data_path + "clip_emb_instruct.pkl", "rb")
-            )
-            low_level_instruction_dict = pickle.load(
-                open(data_path + "clip_emb_low_instruct.pkl", "rb")
-            )
-            floorpan_dict = pickle.load(open(data_path + "floor_plan.pkl", "rb"))
-
-            ### load csv data
-            alfred_data = pd.read_csv(
-                data_path + "alfred_merged_valid_language_goal.csv"
-            )
-            arm_results = pd.read_csv(data_path + "alfred_models_results.csv")
-            emb = []
-            y = np.zeros((4, len(alfred_data), len(bandits)), dtype=np.float32)
-            for _, row in alfred_data.iterrows():
-                task_id = row["task_idx"]
-                repeat_idx = row["repeat_idx"]
-                floorplan = row["task_floor"]
-                emb.append(
-                    np.concatenate(
-                        (
-                            instruction_dict[(task_id, repeat_idx)],
-                            low_level_instruction_dict[(task_id, repeat_idx)],
-                            floorpan_dict[floorplan],
-                        )
-                    )
-                )
-                y = np.zeros(len(bandits))
-                for i, model in bandits.items():
-                    result_row = arm_results.loc[
-                        (arm_results["task_idx"] == task_id)
-                        & (arm_results["repeat_idx"] == repeat_idx % 10)
-                        & (arm_results["model"] == model)
-                    ]
-                    sr = result_row["SR"].iloc[0]
-                    gc = result_row["GC"].iloc[0]
-                    L = result_row["L"].iloc[0]
-                    L_demo = result_row["L*"].iloc[0]
-                    y[0, _, i] = sr
-                    y[1, _, i] = gc
-                    y[2, _, i] = L
-                    y[3, _, i] = L_demo
-
-            emb = np.array(emb)
-            arm_results = np.array(y)
-            np.save(data_path + "clip_emb.npy", emb)
-            np.save(data_path + "arm_results.npy", arm_results)
-        else:
-            emb = np.load(data_path + "clip_emb.npy")
-            arm_results = np.load(data_path + "arm_results.npy")
-            print("loaded data")
-
-        if reward_metric == "GC":
-            self.arm_results = arm_results[1, :, :]
-        elif reward_metric == "PLWGC":
-            self.arm_results = arm_results[1, :, :] * (
-                arm_results[3, :, :]
-                / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
-            )
-        elif reward_metric == "SR":
-            self.arm_results = arm_results[0, :, :]
-        elif reward_metric == "PLWSR":
-            self.arm_results = arm_results[0, :, :] * (
-                arm_results[3, :, :]
-                / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
-            )
-        elif reward_metric == "GC+PLW":
-            gc = arm_results[1, :, :]
-            plw = arm_results[1, :, :] * (
-                arm_results[3, :, :]
-                / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
-            )
-            self.arm_results = 0.5 * gc + 0.5 * plw
+        ### load subsets ###
+        subsets = pd.read_csv("synced_data/csv/mmlu/vicuna-7b-v1.5_nochoice.csv")
+        selected_indices = []
+        self.subsets = []
+        idx = 0
+        for _, row in subsets.iterrows():
+            if row["subdataset"] in subset_map.values():
+                selected_indices.append(idx)
+                self.subsets.append(row["subdataset"])
+            idx += 1
 
         ### shuffle the arm results
         np.random.seed(42)
-        self.num_samples = self.arm_results.shape[0]
+        self.num_samples = len(selected_indices)
         self.shuffle_idx = np.random.choice(
             np.arange(self.num_samples), self.num_samples, replace=self.replace_sample
         )
 
-        ### load embeddings
-        self.instruct_np = emb[:, :emb_size]
-        self.ll_instruct_np = emb[:, emb_size : emb_size * 4]
-        self.floorplan_np = emb[:, emb_size * 4 :]
+        ### remove models
+        model_idx = [i for i in bandits.keys()]
+        self.arm_results = np.load(
+            "synced_data/csv/mmlu/models_accnorm.npy"
+        )  # shape = [25256, 8]
+        self.arm_results = self.arm_results[selected_indices, :]
+        self.arm_results = self.arm_results[:, model_idx]
 
-        opt_ = self.arm_results.max(axis=1)
+        assert self.arm_results.shape[1] == n_bandits, print(
+            f"n_bandits should be equal to the number of {self.arm_results.shape[1]}"
+        )
+
+        ### load embeddings
+        self.question_np = np.load("synced_data/csv/mmlu/clip_emb_question.npy")[
+            selected_indices, :
+        ]
+        self.context_np = np.load("synced_data/csv/mmlu/clip_emb_choices.npy")[
+            selected_indices, :
+        ]
+        self.model_answer_np = (np.load("synced_data/csv/mmlu/clip_emb_answer.npy"))[
+            selected_indices, :
+        ]
+
+        ### load latency data
+        self.model_latency = np.zeros_like(self.arm_results)
+        idx = 0
+        for key, value in bandits.items():
+            latency = pd.read_csv(f"synced_data/csv/mmlu/{value}_answer_time.csv")
+            latency = np.array(latency["answer_time"] + latency["load_time"])
+            repeat_cnt = self.arm_results.shape[0] // len(latency) + 1
+            latency = np.tile(latency, repeat_cnt)
+            self.model_latency[:, idx] = latency[selected_indices]
+            idx += 1
+
+        ### load token costs
+        self.token_costs = np.zeros_like(self.arm_results)
+        token_length = np.load(
+            "synced_data/csv/mmlu/question_token_length.npy"
+        ) + np.load("./synced_data/csv/mmlu/answer_token_length.npy")
+        self.token_costs[:, 1:] = token_length[selected_indices, np.newaxis]
+
+        ### add acc and latency
+        self.reward = (
+            self.arm_results
+            - alpha * np.log10(self.model_latency)
+            - beta * self.token_costs
+        )
+        print(
+            f"reward = {self.arm_results[0]} - {alpha * np.log10(self.model_latency[0])} - {beta*self.token_costs[0]}"
+        )
+
+        ### calculate optimal reward
+        opt_ = self.reward.max(axis=1)  # shape: (dataset_size, )
         opt_avg = opt_.mean()
         opt_ = np.cumsum(opt_) / (np.arange(opt_.shape[0]) + 1)
         print("Optimal mean reward: ", opt_avg)
-        print("Best arm reward: ", self.arm_results.mean(axis=0).max())
-        print("Worst arm reward: ", self.arm_results.mean(axis=0).min())
-        print("arms: ", self.arm_results.mean(axis=0))
-
+        print("Best arm reward: ", self.reward.mean(axis=0).max())
+        print("Worst arm reward: ", self.reward.mean(axis=0).min())
+        print("arms: ", self.reward.mean(axis=0))
         return
 
     def step(
-        self, action: int, _idx: int = None
+        self,
+        action: int,
+        _idx: int = None,
+        _dataset: str = None,
+        reset: bool = False,
     ) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
         Args:
             action: (int) the action that the agent took
             _idx: (int) the index of the next observation
+            _dataset: (str) the dataset to use
         Returns:
             observation: (np.ndarray) the observation of the next step
             reward: (float) the reward from the action
@@ -192,7 +181,7 @@ class AlfredGymEnv(gym.Env):
         ### nothing is sequential here
         ### calculate reward
         current_idx = self.state
-        reward = self.arm_results[current_idx, action]
+        reward = self.reward[current_idx, action]
 
         ### calculate done
         terminated = False
@@ -206,30 +195,33 @@ class AlfredGymEnv(gym.Env):
                     self.num_samples,
                     replace=self.replace_sample,
                 )
-                self.cnt = 0
             next_idx = self.shuffle_idx[self.cnt % self.num_samples]
         else:
             next_idx = _idx
-
         ### calculate the next observation
         if self.contextual:
             ### load the embeddings of a question and its choices and answer
-            obs_np = []
-            instruct_emb = self.instruct_np[next_idx, :]
-            obs_np.append(instruct_emb)
-            if self.low_level:
-                ll_instruct_emb = self.ll_instruct_np[next_idx, :]
-                obs_np.append(ll_instruct_emb)
-            if self.floor_plan:
-                floorplan_emb = self.floorplan_np[next_idx, :]
-                obs_np.append(floorplan_emb)
-            observation = np.concatenate(
-                obs_np,
-                axis=0,
-                dtype="float32",
-            )
+            question_emb = self.question_np[next_idx, :]
+            context_emb = self.context_np[next_idx, :]
+            if self.answer:
+                model_answer_emb = self.model_answer_np[next_idx, :]
+                observation = np.concatenate(
+                    (question_emb, context_emb, model_answer_emb),
+                    axis=0,
+                    dtype="float32",
+                )
+            else:
+                observation = np.concatenate(
+                    (question_emb, context_emb), axis=0, dtype="float32"
+                )
         else:
-            observation = np.ones((self.emb_size,), dtype="float32")
+            subset = self.subsets[next_idx]
+            subset_idx = 0
+            for key, value in subset_map.items():
+                if subset == value:
+                    subset_idx = int(key)
+                    break
+            observation = np.ones((self.emb_size,), dtype="float32") * subset_idx
 
         assert observation.shape == (self.emb_size,), f"obs shape: {observation.shape}"
 
@@ -250,6 +242,7 @@ class AlfredGymEnv(gym.Env):
         self,
         seed: int = None,
         _idx: int = None,
+        _dataset: str = None,
         **kwargs,
     ) -> Tuple[np.ndarray, dict]:
         """
@@ -265,12 +258,11 @@ class AlfredGymEnv(gym.Env):
 
         info = {}
         self.state = -1
-        # print(f"reset: {self.cnt}")
-        observation, _, _, _, info = self.step(
-            0,
-            _idx=_idx,
+        # if self.cnt % 500 == 0:
+        #     print(f"reset: {self.cnt}")
+        observation, reward, terminated, truncated, info = self.step(
+            0, _idx=_idx, _dataset=_dataset, reset=True
         )
-        self.cnt -= 1  ### Bug...
         return observation, info
 
     def save_cum_reward(self):
@@ -280,9 +272,7 @@ class AlfredGymEnv(gym.Env):
         df = pd.DataFrame(columns=["Step", "mean_reward"])
         df["Step"] = self.mean_reward_dict.keys()
         df["mean_reward"] = self.mean_reward_dict.values()
-        df.to_csv(
-            f"synced_data/cumulative_reward/alfred_{self.reward_metric}_step5.csv"
-        )
+        df.to_csv("synced_data/cumulative_reward/mmlu_latency_step5.csv", index=False)
         return
 
     def close(self):
@@ -293,7 +283,7 @@ class AlfredGymEnv(gym.Env):
 # test emv with main function
 if __name__ == "__main__":
     # Create the Gym environment
-    env = AlfredGymEnv(low_level=True, floor_plan=True, contextual=True)
+    env = OpenDomainLatencyGymEnv(answer=True, contextual=False, exact_match=True)
     random = True
 
     # Reset the environment
@@ -303,14 +293,13 @@ if __name__ == "__main__":
     total_reward = 0
 
     if random:
-        for i in range(50000):
+        for i in range(5000):
             cnt += 1
             action = env.action_space.sample()
-            # action = 5
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
             mean_reward = total_reward / cnt
-            if cnt % 1000 == 0:
+            if cnt % 500 == 0:
                 print(cnt)
                 # print(obs)
                 # print(reward, terminated, truncated, info)

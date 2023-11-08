@@ -6,7 +6,8 @@ import torch
 from transformers import AutoTokenizer, pipeline
 
 warnings.filterwarnings("ignore")
-model = "lmsys/vicuna-7b-v1.5"  # "meta-llama/Llama-2-13b-chat-hf"
+# model = "lmsys/vicuna-7b-v1.5"  # "meta-llama/Llama-2-13b-chat-hf"
+model = "jondurbin/airoboros-l2-70b-3.1.2"
 # device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 tokenizer = AutoTokenizer.from_pretrained(model)
@@ -46,7 +47,9 @@ for idx, row in mmlu_data.iterrows():
         "choices": row["choices"],
     }
 
-mmlu_quest_ans.to_csv("./synced_data/csv/mmlu/vicuna-7b-v1.5_quest_ans.csv", index=False)
+mmlu_quest_ans.to_csv(
+    "./synced_data/csv/mmlu/vicuna-7b-v1.5_quest_ans.csv", index=False
+)
 
 """
 Result: Question: Cities control the amount of pollution that is allowed to come from cars. How does this most likely 

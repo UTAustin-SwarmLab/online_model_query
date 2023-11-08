@@ -33,10 +33,12 @@ datasets = {
     "HotpotQA": 5,
 }
 
+data_path = "synced_data/csv/mrqa/"
+
 # batch size - algorithms will be refit after N rounds
 batch_size = 100
 dataset_size = 50000
-percetile = 95
+percentile = 95
 random_seed = 42
 dataset = "mrqa"
 max_iter = 2000
@@ -49,29 +51,23 @@ dataset_idx = [i for i in datasets.values()]
 
 ### load embeddings
 dataset_emb_list = []
-squad_question_np = np.load("./synced_data/csv/mrqa/clip_emb_SQuAD_question.npy")
-squad_context_np = np.load("./synced_data/csv/mrqa/clip_emb_SQuAD_context.npy")
+squad_question_np = np.load(data_path + "clip_emb_SQuAD_question.npy")
+squad_context_np = np.load(data_path + "clip_emb_SQuAD_context.npy")
 squad_np = np.concatenate((squad_question_np, squad_context_np), axis=1)
-trivia_question_np = np.load(
-    "./synced_data/csv/mrqa/clip_emb_TriviaQA-web_question.npy"
-)
-trivia_context_np = np.load("./synced_data/csv/mrqa/clip_emb_TriviaQA-web_context.npy")
+trivia_question_np = np.load(data_path + "clip_emb_TriviaQA-web_question.npy")
+trivia_context_np = np.load(data_path + "clip_emb_TriviaQA-web_context.npy")
 trivia_np = np.concatenate((trivia_question_np, trivia_context_np), axis=1)
-natural_question_np = np.load(
-    "./synced_data/csv/mrqa/clip_emb_NaturalQuestionsShort_question.npy"
-)
-natural_context_np = np.load(
-    "./synced_data/csv/mrqa/clip_emb_NaturalQuestionsShort_context.npy"
-)
+natural_question_np = np.load(data_path + "clip_emb_NaturalQuestionsShort_question.npy")
+natural_context_np = np.load(data_path + "clip_emb_NaturalQuestionsShort_context.npy")
 natural_np = np.concatenate((natural_question_np, natural_context_np), axis=1)
-news_question_np = np.load("./synced_data/csv/mrqa/clip_emb_NewsQA_question.npy")
-news_context_np = np.load("./synced_data/csv/mrqa/clip_emb_NewsQA_context.npy")
+news_question_np = np.load(data_path + "clip_emb_NewsQA_question.npy")
+news_context_np = np.load(data_path + "clip_emb_NewsQA_context.npy")
 news_np = np.concatenate((news_question_np, news_context_np), axis=1)
-search_question_np = np.load("./synced_data/csv/mrqa/clip_emb_SearchQA_question.npy")
-search_context_np = np.load("./synced_data/csv/mrqa/clip_emb_SearchQA_context.npy")
+search_question_np = np.load(data_path + "clip_emb_SearchQA_question.npy")
+search_context_np = np.load(data_path + "clip_emb_SearchQA_context.npy")
 search_np = np.concatenate((search_question_np, search_context_np), axis=1)
-hotpot_question_np = np.load("./synced_data/csv/mrqa/clip_emb_HotpotQA_question.npy")
-hotpot_context_np = np.load("./synced_data/csv/mrqa/clip_emb_HotpotQA_context.npy")
+hotpot_question_np = np.load(data_path + "clip_emb_HotpotQA_question.npy")
+hotpot_context_np = np.load(data_path + "clip_emb_HotpotQA_context.npy")
 hotpot_np = np.concatenate((hotpot_question_np, hotpot_context_np), axis=1)
 
 dataset_emb_list.append(squad_np)
@@ -91,12 +87,12 @@ print("X complete", X_complete.shape)
 X = X_complete[arr, :]
 
 dataset_y_list = []
-squad_exact_np = np.load("./synced_data/csv/mrqa/SQuAD_exact.npy")
-trivia_exact_np = np.load("./synced_data/csv/mrqa/TriviaQA-web_exact.npy")
-natural_exact_np = np.load("./synced_data/csv/mrqa/NaturalQuestionsShort_exact.npy")
-news_exact_np = np.load("./synced_data/csv/mrqa/NewsQA_exact.npy")
-search_exact_np = np.load("./synced_data/csv/mrqa/SearchQA_exact.npy")
-hotpot_exact_np = np.load("./synced_data/csv/mrqa/HotpotQA_exact.npy")
+squad_exact_np = np.load(data_path + "SQuAD_exact.npy")
+trivia_exact_np = np.load(data_path + "TriviaQA-web_exact.npy")
+natural_exact_np = np.load(data_path + "NaturalQuestionsShort_exact.npy")
+news_exact_np = np.load(data_path + "NewsQA_exact.npy")
+search_exact_np = np.load(data_path + "SearchQA_exact.npy")
+hotpot_exact_np = np.load(data_path + "HotpotQA_exact.npy")
 dataset_y_list.append(squad_exact_np)
 dataset_y_list.append(trivia_exact_np)
 dataset_y_list.append(natural_exact_np)
@@ -152,7 +148,7 @@ bootstrapped_ucb = BootstrappedUCB(
     deepcopy(base_algorithm),
     nchoices=nchoices,
     beta_prior=beta_prior_ucb,
-    percentile=percetile,
+    percentile=percentile,
     random_state=random_seed,
 )
 epsilon_greedy = EpsilonGreedy(
@@ -163,7 +159,7 @@ epsilon_greedy = EpsilonGreedy(
 )
 logistic_ucb = LogisticUCB(
     nchoices=nchoices,
-    percentile=percetile,
+    percentile=percentile,
     beta_prior=beta_prior_ts,
     random_state=random_seed,
 )
@@ -237,22 +233,22 @@ for i in range(int(np.floor(X.shape[0] / batch_size))):
 
 ### save models
 with open(
-    f"./synced_data/synced_data/models/ucb_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.pkl",
+    f"./synced_data/synced_data/models/ucb_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
     "wb",
 ) as f:
     cloudpickle.dump(models[0], f)
 with open(
-    f"./synced_data/synced_data/models/egr_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.pkl",
+    f"./synced_data/synced_data/models/egr_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
     "wb",
 ) as f:
     cloudpickle.dump(models[1], f)
 with open(
-    f"./synced_data/synced_data/models/lucb_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.pkl",
+    f"./synced_data/synced_data/models/lucb_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
     "wb",
 ) as f:
     cloudpickle.dump(models[2], f)
 with open(
-    f"./synced_data/synced_data/models/lst_actions_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.pkl",
+    f"./synced_data/synced_data/models/lst_actions_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.pkl",
     "wb",
 ) as f:
     cloudpickle.dump(lst_actions, f)
@@ -273,7 +269,7 @@ colors = plt.cm.tab20(np.linspace(0, 1, 20))
 ax = plt.subplot(111)
 plt.plot(
     get_mean_reward(rewards_ucb),
-    label=f"Bootstrapped Upper Confidence Bound (C.I.={percetile}%)",
+    label=f"Bootstrapped Upper Confidence Bound (C.I.={percentile}%)",
     linewidth=lwd,
     color=colors[0],
 )
@@ -285,7 +281,7 @@ plt.plot(
 )
 plt.plot(
     get_mean_reward(rewards_lucb),
-    label=f"Logistic Upper Confidence Bound (C.I.={percetile}%)",
+    label=f"Logistic Upper Confidence Bound (C.I.={percentile}%)",
     linewidth=lwd,
     color=colors[8],
 )
@@ -300,15 +296,15 @@ print("Overall best arm: ", y_complete.mean(axis=0))
 
 ### save cumulative reward
 np.save(
-    f"./synced_data/cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.npy",
+    f"./synced_data/cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy",
     rewards_ucb,
 )
 np.save(
-    f"./synced_data/cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.npy",
+    f"./synced_data/cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy",
     rewards_egr,
 )
 np.save(
-    f"./synced_data/cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.npy",
+    f"./synced_data/cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy",
     rewards_lucb,
 )
 
@@ -331,6 +327,6 @@ plt.title("Comparison of Online Contextual Bandit Policies)", size=30)
 plt.grid()
 # plt.show()
 plt.savefig(
-    f"./plot/ds{dataset_size}_bs{batch_size}_per{percetile}_{dataset}.png",
+    f"./plot/ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.png",
     bbox_inches="tight",
 )

@@ -36,3 +36,10 @@ register(
     max_episode_steps=1e5,
     entry_point="query.envs.AlfredGymEnv:AlfredGymEnv",
 )
+
+
+register(
+    id="Waymo-v1",
+    max_episode_steps=1e5,
+    entry_point="query.envs.WaymoGymEnv:WaymoGymEnv",
+)

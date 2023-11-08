@@ -1,7 +1,6 @@
 ### code modified from https://github.com/david-cortes/contextualbandits
 ### poetry run python query/src/policy/QAContextualBandit.py
 # Turning logistic regression into contextual bandits policies:
-import json
 import os
 from copy import deepcopy
 
@@ -18,64 +17,107 @@ from pylab import rcParams
 from sklearn.linear_model import LogisticRegression
 
 bandits = {
-    # 0: "vicuna-7b-v1.5",
-    # 1: "falcon-180B",
-    2: "falcon-180B-chat",
-    # 3: "qCammel-70-x",
-    4: "Llama-2-70b-instruct",
-    # 5: "Llama-2-70b-instruct-v2",
-    6: "StableBeluga-13B",
-    # 7: "airoboros-l2-70b",
+    0: "FILM",
+    1: "HiTUT",
+    2: "HLSM",
 }
-subset_map = json.load(open("synced_data/mmlu/subdatasets.json"))
 
-data_path = "synced_data/csv/mmlu/"
+data_path = "synced_data/csv/alfred_data/"
+model_path = "synced_data/cumulative_reward/"
 
 # batch size - algorithms will be refit after N rounds
-batch_size = 5
-dataset_size = 10000
+batch_size = 50
+dataset_size = 13000
 percentile = 95
 random_seed = 42
-dataset = "mmlu"
-max_iter = 4000
+dataset = "alfred"
+max_iter = 2000
+reward_metric = "SR"  # PLWGC, SR, PLWSR
+dataset += "_" + reward_metric
 ### set random seed
 np.random.seed(random_seed)
 
-### idx
-model_idx = [i for i in bandits.keys()]
-
-### load subsets ###
-subsets = pd.read_csv(data_path + "vicuna-7b-v1.5_nochoice.csv")
-selected_indices = []
-idx = 0
-for _, row in subsets.iterrows():
-    if row["subdataset"] in subset_map.values():
-        selected_indices.append(idx)
-    idx += 1
-print(f"selected indices: {len(selected_indices)}")
-
 ### load embeddings
-question_np = np.load(data_path + "clip_emb_question.npy")[selected_indices, :]
-context_np = np.load(data_path + "clip_emb_choices.npy")[selected_indices, :]
-model_answer_np = np.load(data_path + "clip_emb_answer.npy")[selected_indices, :]
-X_complete = np.concatenate(
-    (question_np, context_np, model_answer_np),
-    axis=1,
-)
-arr = np.random.choice(np.arange(X_complete.shape[0]), dataset_size, replace=True)
-# print(arr)
+if not (
+    os.path.isfile(data_path + "clip_emb.npy")
+    or os.path.isfile(data_path + "arm_results.npy")
+):
+    ### load embeddings
+    instruction_dict = cloudpickle.load(open(data_path + "clip_emb_instruct.pkl", "rb"))
+    low_level_instruction_dict = cloudpickle.load(
+        open(data_path + "clip_emb_low_instruct.pkl", "rb")
+    )
+    floorpan_dict = cloudpickle.load(open(data_path + "floor_plan.pkl", "rb"))
+
+    ### load csv data
+    alfred_data = pd.read_csv(data_path + "alfred_merged_valid_language_goal.csv")
+    arm_results_df = pd.read_csv(data_path + "alfred_models_results.csv")
+
+    emb = []
+    y = np.zeros((4, len(alfred_data), len(bandits)), dtype=np.float32)
+    for _, row in alfred_data.iterrows():
+        task_id = row["task_idx"]
+        repeat_idx = row["repeat_idx"]
+        floorplan = row["task_floor"]
+        emb.append(
+            np.concatenate(
+                (
+                    instruction_dict[(task_id, repeat_idx)],
+                    low_level_instruction_dict[(task_id, repeat_idx)],
+                    floorpan_dict[floorplan],
+                )
+            )
+        )
+        for i, model in bandits.items():
+            result_row = arm_results_df.loc[
+                (arm_results_df["task_idx"] == task_id)
+                & (arm_results_df["repeat_idx"] == repeat_idx % 10)
+                & (arm_results_df["model"] == model)
+            ]
+            sr = result_row["SR"].iloc[0]
+            gc = result_row["GC"].iloc[0]
+            L = result_row["L"].iloc[0]
+            L_demo = result_row["L*"].iloc[0]
+            y[0, _, i] = sr
+            y[1, _, i] = gc
+            y[2, _, i] = L
+            y[3, _, i] = L_demo
+
+    X_complete = np.array(emb)
+    arm_results = np.array(y)
+    np.save(data_path + "clip_emb.npy", X_complete)
+    np.save(data_path + "arm_results.npy", arm_results)
+else:
+    X_complete = np.load(data_path + "clip_emb.npy")
+    arm_results = np.load(data_path + "arm_results.npy")
+    print("loaded data")
+
+X_complete = np.delete(X_complete, np.s_[768 : 768 * 4], axis=1)
+if reward_metric == "GC":
+    y_complete = arm_results[1, :, :]
+elif reward_metric == "PLWGC":
+    y_complete = arm_results[1, :, :] * (
+        arm_results[3, :, :] / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
+    )
+elif reward_metric == "SR":
+    y_complete = arm_results[0, :, :]
+elif reward_metric == "PLWSR":
+    y_complete = arm_results[0, :, :] * (
+        arm_results[3, :, :] / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
+    )
+elif reward_metric == "gc and plw":
+    gc = arm_results[1, :, :]
+    plw = arm_results[1, :, :] * (
+        arm_results[3, :, :] / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
+    )
+    y_complete = 0.5 * gc + 0.5 * plw
+
 print("X complete", X_complete.shape)
-X = X_complete[arr, :]
-
-y_complete = np.load(data_path + "models_accnorm.npy")  # shape = [25256, 8]
 print("y complete", y_complete.shape)
-
-y_complete = y_complete[selected_indices, :]
-y_complete = y_complete[:, model_idx]
+arr = np.random.choice(np.arange(X_complete.shape[0]), dataset_size, replace=False)
+X = X_complete[arr, :]
 y = y_complete[arr, :]
 
-print(X.shape)
-print(y.shape)
 assert X.shape[0] == y.shape[0], "X and y should have the same number of rows"
 assert (
     X_complete.shape[0] == y_complete.shape[0]
@@ -91,7 +133,7 @@ print("Best arm reward: ", y_complete.mean(axis=0).max())
 print("Overall worst arm: ", y_complete.mean(axis=0).argmin())
 print("Worst arm reward: ", y_complete.mean(axis=0).min())
 print("arms: ", y_complete.mean(axis=0))
-input("Press Enter to continue...")
+# input("Press Enter to continue...")
 
 ### save optimal reward
 os.makedirs("./cumulative_reward", exist_ok=True)
@@ -262,19 +304,21 @@ print("Overall best arm: ", y_complete.mean(axis=0))
 
 ### save cumulative reward
 np.save(
-    f"./synced_data/cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy",
+    model_path
+    + f"BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy",
     rewards_ucb,
 )
 np.save(
-    f"./synced_data/cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy",
+    model_path
+    + f"EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy",
     rewards_egr,
 )
 np.save(
-    f"./synced_data/cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy",
+    model_path
+    + f"LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy",
     rewards_lucb,
 )
 
-# import warnings
 box = ax.get_position()
 ax.set_position([box.x0, box.y0 + box.height * 0.1, box.width, box.height * 1.25])
 ax.legend(
