@@ -4,18 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.manifold import TSNE
-
-
-### scale and move the coordinates so they fit [0; 1] range
-def scale_to_01_range(x):
-    # compute the distribution range
-    value_range = np.max(x) - np.min(x)
-    # move the distribution so that it starts from zero
-    # by extracting the minimal value from all its values
-    starts_from_zero = x - np.min(x)
-    # make the distribution fit [0; 1] by dividing by its range
-    return starts_from_zero / value_range
-
+from utils import scale_to_01_range
 
 colors = ["red", "blue", "green", "black", "tan", "orange", "purple", "pink"]
 markers = ["o", "v", "s", "p", "x", "D", "P", "*"]
@@ -90,4 +79,4 @@ for ii, task_type in enumerate(task_types):
 ax.legend(fontsize="8", loc="upper left")
 
 # finally, show the plot
-plt.savefig("./plot/alfred_tsne_instruct_merged.png")
+plt.savefig("./plot/Alfred/alfred_tsne_instruct_merged.png")

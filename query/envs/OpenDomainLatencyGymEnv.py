@@ -35,8 +35,8 @@ class OpenDomainLatencyGymEnv(gym.Env):
         device: str or torch.device = "cpu",
         contextual: bool = True,
         replace_sample: bool = False,
-        alpha: float = 0.1,
-        beta: float = 0.02 / 1000,
+        alpha: float = 0.03,
+        beta: float = 0.0008,
         **kwargs,
     ) -> None:
         """
@@ -161,7 +161,6 @@ class OpenDomainLatencyGymEnv(gym.Env):
         self,
         action: int,
         _idx: int = None,
-        _dataset: str = None,
         reset: bool = False,
     ) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
@@ -231,10 +230,10 @@ class OpenDomainLatencyGymEnv(gym.Env):
 
         ### update action list
         self.action_list[action] += 1
-        self.cumulative_reward += reward
-        if self.cnt % 1000 == 0:
-            print(f"step: {self.cnt}, Cum Reward", self.cumulative_reward / self.cnt)
-        if self.cnt % 5 == 0:
+        self.cumulative_reward += reward if not reset else 0
+        if self.cnt % 500 == 0:
+            print(f"step: {self.cnt}, Cum Reward:", self.cumulative_reward / self.cnt)
+        if self.cnt not in self.mean_reward_dict:
             self.mean_reward_dict[self.cnt] = self.cumulative_reward / self.cnt
         return (observation, reward, terminated, truncated, info)
 
@@ -242,7 +241,6 @@ class OpenDomainLatencyGymEnv(gym.Env):
         self,
         seed: int = None,
         _idx: int = None,
-        _dataset: str = None,
         **kwargs,
     ) -> Tuple[np.ndarray, dict]:
         """
@@ -258,11 +256,7 @@ class OpenDomainLatencyGymEnv(gym.Env):
 
         info = {}
         self.state = -1
-        # if self.cnt % 500 == 0:
-        #     print(f"reset: {self.cnt}")
-        observation, reward, terminated, truncated, info = self.step(
-            0, _idx=_idx, _dataset=_dataset, reset=True
-        )
+        observation, _, _, _, info = self.step(0, _idx=_idx, reset=True)
         return observation, info
 
     def save_cum_reward(self):
@@ -296,14 +290,8 @@ if __name__ == "__main__":
         for i in range(5000):
             cnt += 1
             action = env.action_space.sample()
+            action = 2
             obs, reward, terminated, truncated, info = env.step(action)
-            total_reward += reward
-            mean_reward = total_reward / cnt
-            if cnt % 500 == 0:
-                print(cnt)
-                # print(obs)
-                # print(reward, terminated, truncated, info)
-                print(mean_reward)
     else:
         ### test trained model
         import torch
@@ -325,4 +313,4 @@ if __name__ == "__main__":
             obs, reward, terminated, truncated, info = env.step(action, _idx=idx)
             idx_a_list.append((idx, action))
 
-    env.close()
+    print(env.action_list)

@@ -107,16 +107,15 @@ class OpenDomainGymEnv(gym.Env):
         opt_ = self.arm_results.max(axis=1)  # shape: (dataset_size, )
         opt_avg = opt_.mean()
         opt_ = np.cumsum(opt_) / (np.arange(opt_.shape[0]) + 1)
+        assert self.arm_results.shape[1] == n_bandits, print(
+            f"n_bandits should be equal to the number of {self.arm_results.shape[1]}"
+        )
         print("Optimal mean reward: ", opt_avg)
         print("Overall best arm: ", self.arm_results.mean(axis=0).argmax())
         print("Best arm reward: ", self.arm_results.mean(axis=0).max())
         print("Overall worst arm: ", self.arm_results.mean(axis=0).argmin())
         print("Worst arm reward: ", self.arm_results.mean(axis=0).min())
         print("arms: ", self.arm_results.mean(axis=0))
-
-        assert self.arm_results.shape[1] == n_bandits, print(
-            f"n_bandits should be equal to the number of {self.arm_results.shape[1]}"
-        )
 
         ### load embeddings
         self.question_np = np.load("synced_data/csv/mmlu/clip_emb_question.npy")[
@@ -128,19 +127,12 @@ class OpenDomainGymEnv(gym.Env):
         self.model_answer_np = (np.load("synced_data/csv/mmlu/clip_emb_answer.npy"))[
             selected_indices, :
         ]
-        print(
-            "Embeddings loaded. Shape: ",
-            self.question_np.shape,
-            self.context_np.shape,
-            self.model_answer_np.shape,
-            self.arm_results.shape,
-        )
+        return
 
     def step(
         self,
         action: int,
         _idx: int = None,
-        _dataset: str = None,
         reset: bool = False,
     ) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
@@ -213,8 +205,8 @@ class OpenDomainGymEnv(gym.Env):
         self.action_list[action] += 1
         self.cumulative_reward += reward
         if self.cnt % 1000 == 0:
-            print(f"step: {self.cnt}, Cum Reward", self.cumulative_reward / self.cnt)
-        if self.cnt % 5 == 0:
+            print(f"step: {self.cnt}, Cum Reward:", self.cumulative_reward / self.cnt)
+        if self.cnt % 2 == 0:
             self.mean_reward_dict[self.cnt] = self.cumulative_reward / self.cnt
         return (observation, reward, terminated, truncated, info)
 
@@ -242,7 +234,6 @@ class OpenDomainGymEnv(gym.Env):
         self,
         seed: int = None,
         _idx: int = None,
-        _dataset: str = None,
         **kwargs,
     ) -> Tuple[np.ndarray, dict]:
         """
@@ -258,9 +249,7 @@ class OpenDomainGymEnv(gym.Env):
 
         info = {}
         self.state = -1
-        observation, reward, terminated, truncated, info = self.step(
-            0, _idx=_idx, _dataset=_dataset, reset=True
-        )
+        observation, _, _, _, info = self.step(0, _idx=_idx, reset=True)
         return observation, info
 
     def close(self):
@@ -270,7 +259,7 @@ class OpenDomainGymEnv(gym.Env):
         df = pd.DataFrame(columns=["Step", "mean_reward"])
         df["Step"] = self.mean_reward_dict.keys()
         df["mean_reward"] = self.mean_reward_dict.values()
-        df.to_csv("synced_data/cumulative_reward/mmlu_step5.csv", index=False)
+        df.to_csv("synced_data/cumulative_reward/mmlu_step2.csv", index=False)
         return super().close()
 
 

@@ -212,6 +212,6 @@ plt.title("Question Answering", size=30)
 plt.grid()
 # plt.show()
 plt.savefig(
-    f"./plot/{dataset}_ds{dataset_size}_bs{batch_size}_per{percentile}.png",
+    f"./plot/others/{dataset}_ds{dataset_size}_bs{batch_size}_per{percentile}.png",
     bbox_inches="tight",
 )
