@@ -41,7 +41,7 @@ else:
 
 set_random_seed(42, using_cuda=device != "cpu")
 if "Domain" in env_name:
-    total_timesteps = 5000
+    total_timesteps = 8000
     answer = False
     # answer = True
     print(env_name + "-v1")

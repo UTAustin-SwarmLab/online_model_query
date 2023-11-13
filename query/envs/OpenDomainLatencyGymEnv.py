@@ -10,17 +10,18 @@ from gymnasium import spaces
 import query.envs  # noqa: F401
 
 bandits = {
-    0: "vicuna-7b-v1.5",
+    # 0: "vicuna-7b-v1.5",
     # 1: "falcon-180B",
     2: "falcon-180B-chat",
     # 3: "qCammel-70-x",
     4: "Llama-2-70b-instruct",
     # 5: "Llama-2-70b-instruct-v2",
     6: "StableBeluga-13B",
-    # 7: "airoboros-l2-70b",
+    7: "airoboros-l2-70b",
 }
 
 subset_map = json.load(open("synced_data/mmlu/subdatasets.json"))
+save_freq = 2
 
 
 class OpenDomainLatencyGymEnv(gym.Env):
@@ -66,10 +67,8 @@ class OpenDomainLatencyGymEnv(gym.Env):
             self.emb_size = emb_size * 2  # question, choices
 
         self.replace_sample = replace_sample
-        # self.local_model_name = bandits[0]
         self.reward_range = (0, 1)
         self.cnt = 0
-        self.nstep = 0
         self.cumulative_reward = 0
         self.mean_reward_dict = {}
 
@@ -108,17 +107,6 @@ class OpenDomainLatencyGymEnv(gym.Env):
             f"n_bandits should be equal to the number of {self.arm_results.shape[1]}"
         )
 
-        ### load embeddings
-        self.question_np = np.load("synced_data/csv/mmlu/clip_emb_question.npy")[
-            selected_indices, :
-        ]
-        self.context_np = np.load("synced_data/csv/mmlu/clip_emb_choices.npy")[
-            selected_indices, :
-        ]
-        self.model_answer_np = (np.load("synced_data/csv/mmlu/clip_emb_answer.npy"))[
-            selected_indices, :
-        ]
-
         ### load latency data
         self.model_latency = np.zeros_like(self.arm_results)
         idx = 0
@@ -132,9 +120,7 @@ class OpenDomainLatencyGymEnv(gym.Env):
 
         ### load token costs
         self.token_len = np.zeros_like(self.arm_results)
-        token_length = np.load(
-            "synced_data/csv/mmlu/question_token_length.npy"
-        ) + np.load("./synced_data/csv/mmlu/answer_token_length.npy")
+        token_length = np.load("synced_data/csv/mmlu/question_token_length.npy")
         self.token_len[:, 1:] = token_length[selected_indices, np.newaxis]
 
         ### add acc and latency
@@ -155,13 +141,23 @@ class OpenDomainLatencyGymEnv(gym.Env):
         print("Best arm reward: ", self.reward.mean(axis=0).max())
         print("Worst arm reward: ", self.reward.mean(axis=0).min())
         print("arms: ", self.reward.mean(axis=0))
+
+        ### load embeddings
+        self.question_np = np.load("synced_data/csv/mmlu/clip_emb_question.npy")[
+            selected_indices, :
+        ]
+        self.context_np = np.load("synced_data/csv/mmlu/clip_emb_choices.npy")[
+            selected_indices, :
+        ]
+        self.model_answer_np = (np.load("synced_data/csv/mmlu/clip_emb_answer.npy"))[
+            selected_indices, :
+        ]
         return
 
     def step(
         self,
         action: int,
         _idx: int = None,
-        reset: bool = False,
     ) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
         Args:
@@ -197,6 +193,7 @@ class OpenDomainLatencyGymEnv(gym.Env):
             next_idx = self.shuffle_idx[self.cnt % self.num_samples]
         else:
             next_idx = _idx
+
         ### calculate the next observation
         if self.contextual:
             ### load the embeddings of a question and its choices and answer
@@ -230,10 +227,10 @@ class OpenDomainLatencyGymEnv(gym.Env):
 
         ### update action list
         self.action_list[action] += 1
-        self.cumulative_reward += reward if not reset else 0
-        if self.cnt % 500 == 0:
+        self.cumulative_reward += reward
+        if self.cnt % 1000 == 0:
             print(f"step: {self.cnt}, Cum Reward:", self.cumulative_reward / self.cnt)
-        if self.cnt not in self.mean_reward_dict:
+        if self.cnt % save_freq == 0:
             self.mean_reward_dict[self.cnt] = self.cumulative_reward / self.cnt
         return (observation, reward, terminated, truncated, info)
 
@@ -256,7 +253,7 @@ class OpenDomainLatencyGymEnv(gym.Env):
 
         info = {}
         self.state = -1
-        observation, _, _, _, info = self.step(0, _idx=_idx, reset=True)
+        observation, _, _, _, info = self.step(0, _idx=_idx)
         return observation, info
 
     def save_cum_reward(self):
@@ -266,7 +263,10 @@ class OpenDomainLatencyGymEnv(gym.Env):
         df = pd.DataFrame(columns=["Step", "mean_reward"])
         df["Step"] = self.mean_reward_dict.keys()
         df["mean_reward"] = self.mean_reward_dict.values()
-        df.to_csv("synced_data/cumulative_reward/mmlu_latency_step5.csv", index=False)
+        df.to_csv(
+            f"synced_data/cumulative_reward/mmlu_latency_step{save_freq}.csv",
+            index=False,
+        )
         return
 
     def close(self):

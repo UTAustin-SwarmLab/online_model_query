@@ -82,7 +82,6 @@ class OpenDomainGymEnv(gym.Env):
                 selected_indices.append(idx)
                 self.subsets.append(row["subdataset"])
             idx += 1
-        print(f"selected indices: {len(selected_indices)}")
 
         ### shuffle the arm results
         np.random.seed(42)
@@ -102,14 +101,14 @@ class OpenDomainGymEnv(gym.Env):
         )
         self.arm_results = self.arm_results[selected_indices, :]
         self.arm_results = self.arm_results[:, model_idx]
+        assert self.arm_results.shape[1] == n_bandits, print(
+            f"n_bandits should be equal to the number of {self.arm_results.shape[1]}"
+        )
 
         ### calculate optimal reward
         opt_ = self.arm_results.max(axis=1)  # shape: (dataset_size, )
         opt_avg = opt_.mean()
         opt_ = np.cumsum(opt_) / (np.arange(opt_.shape[0]) + 1)
-        assert self.arm_results.shape[1] == n_bandits, print(
-            f"n_bandits should be equal to the number of {self.arm_results.shape[1]}"
-        )
         print("Optimal mean reward: ", opt_avg)
         print("Overall best arm: ", self.arm_results.mean(axis=0).argmax())
         print("Best arm reward: ", self.arm_results.mean(axis=0).max())
@@ -133,7 +132,6 @@ class OpenDomainGymEnv(gym.Env):
         self,
         action: int,
         _idx: int = None,
-        reset: bool = False,
     ) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
         Args:
@@ -249,7 +247,7 @@ class OpenDomainGymEnv(gym.Env):
 
         info = {}
         self.state = -1
-        observation, _, _, _, info = self.step(0, _idx=_idx, reset=True)
+        observation, _, _, _, info = self.step(0, _idx=_idx)
         return observation, info
 
     def close(self):

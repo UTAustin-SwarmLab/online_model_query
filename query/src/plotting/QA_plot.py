@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from pylab import rcParams
+from utils import get_mean_reward
 
 bandits = {
     # 0: "deberta-v3-base-mrqa",
@@ -138,14 +139,6 @@ ppo = pd.read_csv("./synced_data/cumulative_reward/QAstep100_embed.csv")
 rewards_ppo = ppo["mean_reward"].to_numpy()[: rewards_opt.shape[0]]
 # rewards_ppo /= batch_size**2
 
-
-def get_mean_reward(reward_lst, batch_size=batch_size):
-    mean_rew = list()
-    for r in range(len(reward_lst)):
-        mean_rew.append(sum(reward_lst[: r + 1]) * 1.0 / ((r + 1) * batch_size))
-    return mean_rew
-
-
 rcParams["figure.figsize"] = 14, 8
 lwd = 5
 cmap = plt.get_cmap("tab20")
@@ -153,19 +146,19 @@ colors = plt.cm.tab20(np.linspace(0, 1, 20))
 
 ax = plt.subplot(111)
 plt.plot(
-    get_mean_reward(rewards_ucb),
+    get_mean_reward(rewards_ucb, batch_size),
     label=f"Bootstrapped UCB (C.I.={percentile}%)",
     linewidth=lwd,
     color=colors[0],
 )
 plt.plot(
-    get_mean_reward(rewards_egr),
+    get_mean_reward(rewards_egr, batch_size),
     label="$\epsilon$-Greedy",
     linewidth=lwd,
     color=colors[6],
 )  ### (p0=20%, decay=0.9999) , marker='o', linestyle=':'
 plt.plot(
-    get_mean_reward(rewards_lucb),
+    get_mean_reward(rewards_lucb, batch_size),
     label=f"Logistic UCB (C.I.={percentile}%)",
     linewidth=lwd,
     color=colors[8],
