@@ -106,7 +106,7 @@ elif "Alfred" in env_name:
     )
     log_path = f"./tensorboard_log/PPO_step{n_steps}_Alfred_{reward_metric}/"
 elif "Waymo" in env_name:
-    total_timesteps = 15000
+    total_timesteps = 10000
     env = gym.make(
         env_name + "-v1",
         max_episode_steps=max_episode_steps,

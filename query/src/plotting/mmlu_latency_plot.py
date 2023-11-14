@@ -7,7 +7,7 @@ from pylab import rcParams
 from utils import get_mean_reward
 
 bandits = {
-    # 0: "vicuna-7b-v1.5",
+    0: "vicuna-7b-v1.5",
     # 1: "falcon-180B",
     2: "falcon-180B-chat",
     # 3: "qCammel-70-x",
@@ -27,6 +27,8 @@ percentile = 95
 random_seed = 42
 dataset = "mmlu"
 max_iter = 4000
+alpha = 0.03
+beta = 0.0008
 ### set random seed
 np.random.seed(random_seed)
 contextual_bandits = False
@@ -53,15 +55,32 @@ X_complete = np.concatenate(
     axis=1,
 )
 arr = np.random.choice(np.arange(X_complete.shape[0]), dataset_size, replace=True)
-# print(arr)
 print("X complete", X_complete.shape)
 X = X_complete[arr, :]
 
-y_complete = np.load(data_path + "models_accnorm.npy")  # shape = [25256, 8]
-print("y complete", y_complete.shape)
+arm_results = np.load(data_path + "models_accnorm.npy")  # shape = [25256, 8]
+arm_results = arm_results[:, model_idx]
+
+### load latency data
+model_latency = np.zeros_like(arm_results)
+idx = 0
+for key, value in bandits.items():
+    latency = pd.read_csv(f"synced_data/csv/mmlu/{value}_answer_time.csv")
+    latency = np.array(latency["answer_time"] + latency["load_time"])
+    repeat_cnt = arm_results.shape[0] // len(latency) + 1
+    latency = np.tile(latency, repeat_cnt)
+    model_latency[:, idx] = latency[selected_indices]
+    idx += 1
+
+### load token costs
+token_len = np.zeros_like(arm_results)
+token_length = np.load("synced_data/csv/mmlu/question_token_length.npy")
+token_len[:, 1:] = token_length[selected_indices, np.newaxis]
+
+### add acc and latency
+y_complete = arm_results - alpha * np.log10(model_latency) - beta * token_len
 
 y_complete = y_complete[selected_indices, :]
-y_complete = y_complete[:, model_idx]
 y = y_complete[arr, :]
 
 print(X.shape)
@@ -98,7 +117,7 @@ if contextual_bandits:
 rewards_opt = np.array(int(y.shape[0] / batch_size) * [y.max(axis=1).mean()])
 
 ### load PPO reward
-ppo = pd.read_csv(f"./synced_data/cumulative_reward/mmlu_step{batch_size}.csv")
+ppo = pd.read_csv(f"./synced_data/cumulative_reward/mmlu_latency_step{batch_size}.csv")
 ### pandas to numpy
 rewards_ppo = ppo["mean_reward"].to_numpy()[: rewards_opt.shape[0]]
 print("PPO mean reward: ", rewards_ppo.shape)
@@ -167,9 +186,7 @@ plt.xlabel(f"Rounds (models were updated every {batch_size} rounds)", size=25)
 plt.ylabel("Cumulative Mean Reward", size=25)
 plt.title("Question Answering", size=30)
 plt.grid()
-plt.ylim(0.6, 0.9)
-plt.yticks(np.arange(0.6, 0.91, 0.05))
 plt.savefig(
-    f"./plot/mmlu/{dataset}_ds{dataset_size}_bs{batch_size}_per{percentile}.png",
+    f"./plot/mmlu/{dataset}_latency_ds{dataset_size}_bs{batch_size}_per{percentile}.png",
     bbox_inches="tight",
 )
