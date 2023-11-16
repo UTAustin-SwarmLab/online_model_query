@@ -1,0 +1,48 @@
+project: "rl-example"
+program: query/src/policy/wandb_ppo.py
+method: bayes
+name: sweep
+metric:
+  goal: maximize
+  name: mean_reward
+parameters:
+  ent_coef:   
+    distribution": log_uniform
+    min": 0.01
+    max": 1
+  target_kl:
+    distribution: log_uniform
+    min: 0.003
+    max: 0.03
+  n_steps:
+    values: [2, 4, 16, 32, 64]
+  learning_rate:  
+    distribution: "log_uniform"
+    min: 0.01
+    max: 1
+  batch_size:
+    values: [2, 4, 16, 32, 64]
+command:
+  - poetry run python
+  - ${program}
+  - ${args}
+
+# program: /home/beb3238/d4po/scripts/d4po_hydraexperimenter.py
+# method: random
+# metric:
+#   goal: maximize
+#   name: eval/episode_reward
+# parameters:
+#   d4po.actor_learning_rate:
+#     distribution: uniform
+#     max: 0.01
+#     min: 0.0001
+#   d4po.unroll_length:
+#     distribution: int_uniform
+#     max: 100
+#     min: 5
+# command:
+#   - ${env}
+#   - python
+#   - ${program}
+#   - ${args_no_hyphens}

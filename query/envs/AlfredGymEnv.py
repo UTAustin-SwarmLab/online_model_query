@@ -36,6 +36,7 @@ class AlfredGymEnv(gym.Env):
         reward_metric: str = "GC",
         alpha: float = 0.05,
         beta: float = 0.005,
+        save_freq: int = 5,
         **kwargs,
     ) -> None:
         """
@@ -71,6 +72,7 @@ class AlfredGymEnv(gym.Env):
         self.low_level = low_level
         self.floor_plan = floor_plan
         self.reward_metric = reward_metric
+        self.save_freq = save_freq
 
         ### input is an embedding
         self.observation_space = spaces.Box(
@@ -163,9 +165,6 @@ class AlfredGymEnv(gym.Env):
                 arm_results[2, :, :], arm_results[3, :, :]
             )
             L = arm_results[2, :, :]
-
-            print(gc.shape, L_ratio.shape, token_len.shape)
-            print(beta * token_len[0:5], L_ratio[:, 0:5], gc[:, 0:5], L[:, 0:5])
             # self.arm_results = 0.5 * gc + 0.5 * gc * L_ratio - beta * token_len
             self.arm_results = 0.5 * gc - alpha * np.log10(L) - beta * token_len
 
@@ -260,9 +259,8 @@ class AlfredGymEnv(gym.Env):
                 f"step: {self.cnt}, Cum Reward",
                 self.cumulative_reward / self.cnt,
             )
-        if self.cnt % 5 == 0:
-            if self.cnt not in self.mean_reward_dict:
-                self.mean_reward_dict[self.cnt] = self.cumulative_reward / self.cnt
+        if self.cnt % self.save_freq == 0 and self.cnt <= self.num_samples:
+            self.mean_reward_dict[self.cnt] = self.cumulative_reward / self.cnt
 
         ### update action list
         self.action_list[action] += 1
@@ -288,10 +286,7 @@ class AlfredGymEnv(gym.Env):
 
         info = {}
         self.state = -1
-        observation, _, _, _, info = self.step(
-            0,
-            _idx=_idx,
-        )
+        observation, _, _, _, info = self.step(0, _idx=_idx)
         return observation, info
 
     def save_cum_reward(self):
@@ -302,7 +297,7 @@ class AlfredGymEnv(gym.Env):
         df["Step"] = self.mean_reward_dict.keys()
         df["mean_reward"] = self.mean_reward_dict.values()
         df.to_csv(
-            f"synced_data/cumulative_reward/alfred_{self.reward_metric}_step5.csv"
+            f"synced_data/cumulative_reward/alfred_{self.reward_metric}_step{self.save_freq}.csv"
         )
         return
 

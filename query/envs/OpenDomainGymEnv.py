@@ -35,6 +35,7 @@ class OpenDomainGymEnv(gym.Env):
         device: str or torch.device = "cpu",
         contextual: bool = True,
         replace_sample: bool = False,
+        save_freq: int = 50,
         **kwargs,
     ) -> None:
         """
@@ -66,6 +67,7 @@ class OpenDomainGymEnv(gym.Env):
         self.cnt = 0
         self.cumulative_reward = 0
         self.mean_reward_dict = {}
+        self.save_freq = save_freq
 
         ### input is an embedding
         self.observation_space = spaces.Box(
@@ -110,9 +112,7 @@ class OpenDomainGymEnv(gym.Env):
         opt_avg = opt_.mean()
         opt_ = np.cumsum(opt_) / (np.arange(opt_.shape[0]) + 1)
         print("Optimal mean reward: ", opt_avg)
-        print("Overall best arm: ", self.arm_results.mean(axis=0).argmax())
         print("Best arm reward: ", self.arm_results.mean(axis=0).max())
-        print("Overall worst arm: ", self.arm_results.mean(axis=0).argmin())
         print("Worst arm reward: ", self.arm_results.mean(axis=0).min())
         print("arms: ", self.arm_results.mean(axis=0))
 
@@ -202,31 +202,11 @@ class OpenDomainGymEnv(gym.Env):
         ### update action list
         self.action_list[action] += 1
         self.cumulative_reward += reward
-        if self.cnt % 1000 == 0:
+        if self.cnt % 500 == 0:
             print(f"step: {self.cnt}, Cum Reward:", self.cumulative_reward / self.cnt)
-        if self.cnt % 2 == 0:
+        if self.cnt % self.save_freq == 0 and self.cnt <= self.num_samples:
             self.mean_reward_dict[self.cnt] = self.cumulative_reward / self.cnt
         return (observation, reward, terminated, truncated, info)
-
-        # ### update next state
-        # self.state = next_idx  # update current idx
-        # self.cnt += 1
-
-        # if not reset:
-        #     ### update action list
-        #     self.action_list[action] += 1
-        #     ### update cumulative reward
-        #     self.cumulative_reward += reward
-        #     self.nstep += 1
-        #     if self.nstep % 5 == 0:
-        #         self.mean_reward_dict[self.nstep] = self.cumulative_reward / self.nstep
-        #     if self.nstep % 1000 == 0:
-        #         print(
-        #             f"step: {self.nstep}, Cum Reward",
-        #             self.cumulative_reward / self.nstep,
-        #         )
-
-        # return (observation, reward, terminated, truncated, info)
 
     def reset(
         self,
@@ -257,7 +237,9 @@ class OpenDomainGymEnv(gym.Env):
         df = pd.DataFrame(columns=["Step", "mean_reward"])
         df["Step"] = self.mean_reward_dict.keys()
         df["mean_reward"] = self.mean_reward_dict.values()
-        df.to_csv("synced_data/cumulative_reward/mmlu_step2.csv", index=False)
+        df.to_csv(
+            f"synced_data/cumulative_reward/mmlu_step{self.save_freq}.csv", index=False
+        )
         return super().close()
 
 

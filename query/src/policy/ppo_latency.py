@@ -19,7 +19,7 @@ parser.add_argument(
 parser.add_argument(
     "-i", "--return_image", type=bool, help="return image or not", default=False
 )
-parser.add_argument("-n", "--step", type=int, help="steps per update", default=100)
+parser.add_argument("-n", "--step", type=int, help="steps per update", default=25)
 args = parser.parse_args()
 print(args)
 
@@ -41,7 +41,7 @@ else:
 
 set_random_seed(42, using_cuda=device != "cpu")
 if "Domain" in env_name:
-    total_timesteps = 8000
+    total_timesteps = 10000
     answer = False
     # answer = True
     print(env_name + "-v1")
@@ -53,6 +53,7 @@ if "Domain" in env_name:
         answer=answer,
         replace_sample=False,
         max_steps=n_steps,
+        save_freq=n_steps,
     )
     tag = ""
     if contextual:
@@ -61,7 +62,7 @@ if "Domain" in env_name:
         tag += "_answer"
     log_path = f"./tensorboard_log/PPO_latency_step{n_steps}_OpenDomain{tag}/"
 elif "Waymo" in env_name:
-    total_timesteps = 15000
+    total_timesteps = 20000
     env = gym.make(
         "WaymoLatency-v1",
         max_episode_steps=max_episode_steps,
@@ -69,6 +70,7 @@ elif "Waymo" in env_name:
         contextual=contextual,
         text=True,
         replace=False,
+        save_freq=n_steps,
     )
     log_path = f"./tensorboard_log/PPO_latency_step{n_steps}_Waymo/"
 else:
@@ -77,17 +79,23 @@ else:
 ### train agent model
 ### hyperparameters of PPO to tune:
 policy = "MlpPolicy" if not args.return_image else "CnnPolicy"
+policy_kwargs = dict(
+    activation_fn=torch.nn.GELU,
+    # net_arch=dict(pi=[768 * 2, 512, 256], vf=[768 * 2, 512, 256]),
+    net_arch=[768, 512, 128, 64, 16],
+)
 model = PPO(
     policy,
-    # learning_rate=3e-4,  # 3e-4
-    # target_kl=0.1,
-    # ent_coef=0.01,
+    learning_rate=1e-4,  # 3e-4
+    target_kl=0.003,  # (0.003 to 0.03)
+    ent_coef=0.01,
+    policy_kwargs=policy_kwargs,
     env=env,
     n_steps=n_steps,
     batch_size=n_steps,
     verbose=0,
     gamma=0.0,
-    tensorboard_log=log_path,
+    # tensorboard_log=log_path,
     stats_window_size=int(1),
     device=device,
 )

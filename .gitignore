@@ -1,6 +1,9 @@
 /tensorboard_log/
 /synced_data/
 __pycache__/
+/runs/
+/wandb/
+/output/
 *.json
 *.csv
 *.npy

@@ -20,7 +20,7 @@ percentile = 95
 random_seed = 42
 dataset = "alfred"
 max_iter = 2000
-reward_metric = "GC+PLW"  # SR, GC+PLW
+reward_metric = "SR"  # SR, GC+PLW
 dataset += "_" + reward_metric
 contextual_bandits = False
 
@@ -57,9 +57,6 @@ elif reward_metric == "GC+PLW":
         arm_results[2, :, :], arm_results[3, :, :]
     )
     L = arm_results[2, :, :]
-
-    print(gc.shape, L_ratio.shape, token_len.shape)
-    print(beta * token_len[0:15], L_ratio[:, 0:15], gc[:, 0:15], L[:, 0:15])
     # y_complete = 0.5 * gc + 0.5 * gc * L_ratio - beta * token_len
     y_complete = 0.5 * gc - alpha * np.log10(L) - beta * token_len
 
@@ -176,7 +173,8 @@ plt.xlabel(f"Rounds (models were updated every {batch_size} rounds)", size=25)
 plt.ylabel(f"Cumulative Mean {reward_metric}", size=25)
 plt.title("ALFRED", size=30)
 plt.grid()
-plt.yticks(np.arange(0, 0.21, 0.05))
+ymin, ymax = (0, 0.21) if reward_metric == "GC+SLW" else (0.2, 0.51)
+plt.yticks(np.arange(ymin, ymax, 0.05))
 plt.savefig(
     f"./plot/Alfred/{dataset}_ds{dataset_size}_bs{batch_size}_per{percentile}.png",
     bbox_inches="tight",

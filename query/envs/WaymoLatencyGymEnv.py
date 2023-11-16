@@ -30,8 +30,9 @@ class WaymoLatencyGymEnv(gym.Env):
         contextual: bool = False,
         text: bool = True,
         replace_sample: bool = True,
-        alpha: float = 0.5,
-        beta: float = 0.02 / 1000,
+        alpha: float = 0.2,
+        beta: float = 0.01 / 10,
+        save_freq: int = 50,
         **kwargs,
     ) -> None:
         """
@@ -59,14 +60,13 @@ class WaymoLatencyGymEnv(gym.Env):
         self.contextual = contextual
         self.text = text
         self.action_list = [0 for _ in range(n_bandits)]
-
         self.device = device
-        self.emb_size = emb_size * 2  # question + image
-
+        self.emb_size = emb_size * 2 if text else emb_size
         self.replace_sample = replace_sample
         self.cnt = 0
         self.cumulative_reward = 0
         self.mean_reward_dict = {}
+        self.save_freq = save_freq
 
         ### input is an embedding
         self.observation_space = spaces.Box(
@@ -75,7 +75,7 @@ class WaymoLatencyGymEnv(gym.Env):
 
         ### load embeddings
         self.q_emb = np.load(data_path + "clip_emb_question.npy")  # 10x768
-        self.q_emb = np.repeat(self.q_emb, 2000, axis=0)  # 20000x768
+        self.q_emb = np.tile(self.q_emb, (2000, 1))  # 20000x768
         self.token_len = np.load(data_path + "question_token_length.npy")  # 10
         self.token_len = np.tile(self.token_len, 2000)
         self.token_len = self.token_len.reshape(dataset_size, 1)  # 20000x1
@@ -91,6 +91,10 @@ class WaymoLatencyGymEnv(gym.Env):
         assert self.token_len.shape == self.arm_results.shape, print(
             f"token_len shape 0: {self.token_len.shape} should be {self.arm_results.shape}"
         )
+        self.img_mean = np.mean(self.img_emb, axis=0)
+        self.img_std = np.std(self.img_emb, axis=0)
+        self.q_mean = np.mean(self.q_emb, axis=0)
+        self.q_std = np.std(self.q_emb, axis=0)
 
         ### add image transmission time
         self.model_latency[:, 1:] += 0.166 * 2
@@ -102,7 +106,7 @@ class WaymoLatencyGymEnv(gym.Env):
             - beta * self.token_len * 2
         )
         print(
-            f"reward = {self.arm_results[0]} - {alpha*np.log10(self.model_latency[0])} - {beta*self.token_len[0]*2}"
+            f"reward = {self.arm_results[-1]} - {alpha*np.log10(self.model_latency[-1])} - {beta*self.token_len[-1]*2}"
         )
         print("Model latency average: ", np.mean(self.model_latency, axis=0))
         print("Model acc average: ", np.mean(self.arm_results, axis=0))
@@ -116,7 +120,6 @@ class WaymoLatencyGymEnv(gym.Env):
         print("Best arm reward: ", self.reward.mean(axis=0).max())
         print("Worst arm reward: ", self.reward.mean(axis=0).min())
         print("arms: ", self.reward.mean(axis=0))
-        input("Press Enter to continue...")
 
         ### shuffle the arm results
         np.random.seed(42)
@@ -146,7 +149,7 @@ class WaymoLatencyGymEnv(gym.Env):
         ### nothing is sequential here
         ### calculate reward
         current_idx = self.state
-        reward = self.arm_results[current_idx, action]
+        reward = self.reward[current_idx, action]
 
         ### calculate done
         terminated = False
@@ -160,7 +163,6 @@ class WaymoLatencyGymEnv(gym.Env):
                     self.num_samples,
                     replace=self.replace_sample,
                 )
-                self.cnt = 0
             next_idx = self.shuffle_idx[self.cnt % self.num_samples]
         else:
             next_idx = _idx
@@ -168,12 +170,11 @@ class WaymoLatencyGymEnv(gym.Env):
         ### calculate the next observation
         if self.contextual:
             if self.text:
-                q_idx = next_idx % 10
-                img_idx = next_idx // 10
-                q_emb = self.q_emb[q_idx, :]
-                img_emb = self.img_emb[img_idx]
+                q_emb = (self.q_emb[next_idx, :] - self.q_mean) / self.q_std
+                img_emb = (self.img_emb[next_idx, :] - self.img_mean) / self.img_std
                 observation = np.concatenate((q_emb, img_emb)).astype("float32")
             else:
+                next_idx
                 observation = self.img_emb[next_idx].astype("float32")
         else:
             observation = np.ones((self.emb_size,), dtype="float32")
@@ -187,9 +188,10 @@ class WaymoLatencyGymEnv(gym.Env):
         ### update action list
         self.action_list[action] += 1
         self.cumulative_reward += reward
-        if self.cnt % 1000 == 0:
+        if self.cnt % 500 == 0:
             print(f"step: {self.cnt}, Cum Reward", self.cumulative_reward / self.cnt)
-        if self.cnt % 5 == 0:
+            print("action list: ", self.action_list)
+        if self.cnt % self.save_freq == 0 and self.cnt <= self.num_samples:
             self.mean_reward_dict[self.cnt] = self.cumulative_reward / self.cnt
         return (observation, reward, terminated, truncated, info)
 
@@ -212,12 +214,7 @@ class WaymoLatencyGymEnv(gym.Env):
 
         info = {}
         self.state = -1
-        print(f"reset: {self.cnt}")
-        observation, _, _, _, info = self.step(
-            0,
-            _idx=_idx,
-        )
-        self.cnt -= 1  ### Bug...
+        observation, _, _, _, info = self.step(0, _idx=_idx)
         return observation, info
 
     def save_cum_reward(self):
@@ -227,7 +224,10 @@ class WaymoLatencyGymEnv(gym.Env):
         df = pd.DataFrame(columns=["Step", "mean_reward"])
         df["Step"] = self.mean_reward_dict.keys()
         df["mean_reward"] = self.mean_reward_dict.values()
-        df.to_csv("synced_data/cumulative_reward/waymo_latency_step5.csv", index=False)
+        df.to_csv(
+            f"synced_data/cumulative_reward/waymo_latency_step{self.save_freq}.csv",
+            index=False,
+        )
         return
 
     def close(self):
@@ -238,7 +238,7 @@ class WaymoLatencyGymEnv(gym.Env):
 # test emv with main function
 if __name__ == "__main__":
     # Create the Gym environment
-    env = WaymoLatencyGymEnv(contextual=True)
+    env = WaymoLatencyGymEnv(contextual=True, text=False, replace_sample=False)
     random = True
 
     # Reset the environment
@@ -248,17 +248,13 @@ if __name__ == "__main__":
     total_reward = 0
 
     if random:
-        for i in range(10000):
+        for i in range(20000):
             cnt += 1
             action = env.action_space.sample()
+            action = 0
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
             mean_reward = total_reward / cnt
-            if cnt % 1000 == 0:
-                print(cnt)
-                # print(obs)
-                # print(reward, terminated, truncated, info)
-                print(mean_reward)
     else:
         ### test trained model
         import torch
@@ -279,5 +275,3 @@ if __name__ == "__main__":
             action, _ = model.predict(obs)
             obs, reward, terminated, truncated, info = env.step(action, _idx=idx)
             idx_a_list.append((idx, action))
-
-    env.close()

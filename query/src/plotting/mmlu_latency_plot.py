@@ -21,12 +21,11 @@ subset_map = json.load(open("synced_data/mmlu/subdatasets.json"))
 data_path = "synced_data/csv/mmlu/"
 
 # batch size - algorithms will be refit after N rounds
-batch_size = 2
+batch_size = 5
 dataset_size = 12000
 percentile = 95
 random_seed = 42
 dataset = "mmlu"
-max_iter = 4000
 alpha = 0.03
 beta = 0.0008
 ### set random seed

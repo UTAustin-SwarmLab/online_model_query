@@ -1,5 +1,3 @@
-import json
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -7,60 +5,49 @@ from pylab import rcParams
 from utils import get_mean_reward
 
 bandits = {
-    # 0: "vicuna-7b-v1.5",
-    # 1: "falcon-180B",
-    2: "falcon-180B-chat",
-    # 3: "qCammel-70-x",
-    4: "Llama-2-70b-instruct",
-    # 5: "Llama-2-70b-instruct-v2",
-    6: "StableBeluga-13B",
-    # 7: "airoboros-l2-70b",
+    0: "llava-v1.5-7b",
+    1: "llava-v1.5-13b",
+    2: "llava-v1.5-13b-lora",
 }
-subset_map = json.load(open("synced_data/mmlu/subdatasets.json"))
-
-data_path = "synced_data/csv/mmlu/"
+data_path = "synced_data/csv/waymo/"
 
 # batch size - algorithms will be refit after N rounds
 batch_size = 5
-dataset_size = 12000
+dataset_size = 20000
 percentile = 95
 random_seed = 42
-dataset = "mmlu"
+dataset = "Waymo"
+alpha = 0.2
+beta = 0.01 / 10
 ### set random seed
 np.random.seed(random_seed)
 contextual_bandits = False
 
-### idx
-model_idx = [i for i in bandits.keys()]
-
-### load subsets ###
-subsets = pd.read_csv(data_path + "vicuna-7b-v1.5_nochoice.csv")
-selected_indices = []
-idx = 0
-for _, row in subsets.iterrows():
-    if row["subdataset"] in subset_map.values():
-        selected_indices.append(idx)
-    idx += 1
-print(f"selected indices: {len(selected_indices)}")
-
 ### load embeddings
-question_np = np.load(data_path + "clip_emb_question.npy")[selected_indices, :]
-context_np = np.load(data_path + "clip_emb_choices.npy")[selected_indices, :]
-model_answer_np = np.load(data_path + "clip_emb_answer.npy")[selected_indices, :]
+q_emb = np.load(data_path + "clip_emb_question.npy")  # 10x768
+q_emb = np.tile(q_emb, (2000, 1))  # 20000x768
+token_len = np.load(data_path + "question_token_length.npy")  # 10
+token_len = np.tile(token_len, 2000)
+token_len = token_len.reshape(-1, 1)  # 20000x1
+token_len = np.repeat(token_len, 3, axis=1)  # 20000x3
+token_len[:, 0] = 0  # no need to pay for the token cost
+img_emb = np.load(data_path + "clip_emb_img.npy")  # 2000x768
+img_emb = np.repeat(img_emb, 10, axis=0)
+arm_results = np.load(data_path + "arm_results.npy")  # 20000x3
+model_latency = np.load(data_path + "arm_results_time.npy")  # 20000x3
+
+### add image transmission time
+model_latency[:, 1:] += 0.166 * 2
+
+### add acc and latency
 X_complete = np.concatenate(
-    (question_np, context_np, model_answer_np),
+    (q_emb, img_emb, arm_results),
     axis=1,
 )
 arr = np.random.choice(np.arange(X_complete.shape[0]), dataset_size, replace=True)
-# print(arr)
 print("X complete", X_complete.shape)
 X = X_complete[arr, :]
-
-y_complete = np.load(data_path + "models_accnorm.npy")  # shape = [25256, 8]
-print("y complete", y_complete.shape)
-
-y_complete = y_complete[selected_indices, :]
-y_complete = y_complete[:, model_idx]
+y_complete = arm_results - alpha * np.log10(model_latency) - beta * token_len * 2
 y = y_complete[arr, :]
 
 print(X.shape)
@@ -97,7 +84,7 @@ if contextual_bandits:
 rewards_opt = np.array(int(y.shape[0] / batch_size) * [y.max(axis=1).mean()])
 
 ### load PPO reward
-ppo = pd.read_csv(f"./synced_data/cumulative_reward/mmlu_step{batch_size}.csv")
+ppo = pd.read_csv(f"./synced_data/cumulative_reward/waymo_latency_step{batch_size}.csv")
 ### pandas to numpy
 rewards_ppo = ppo["mean_reward"].to_numpy()[: rewards_opt.shape[0]]
 print("PPO mean reward: ", rewards_ppo.shape)
@@ -166,9 +153,9 @@ plt.xlabel(f"Rounds (models were updated every {batch_size} rounds)", size=25)
 plt.ylabel("Cumulative Mean Reward", size=25)
 plt.title("Question Answering", size=30)
 plt.grid()
-plt.ylim(0.6, 0.9)
-plt.yticks(np.arange(0.6, 0.91, 0.05))
+plt.ylim(0.6, 0.85)
+plt.yticks(np.arange(0.6, 0.86, 0.05))
 plt.savefig(
-    f"./plot/mmlu/{dataset}_ds{dataset_size}_bs{batch_size}_per{percentile}.png",
+    f"./plot/{dataset}/{dataset}_latency_ds{dataset_size}_bs{batch_size}_per{percentile}.png",
     bbox_inches="tight",
 )

@@ -4,9 +4,9 @@
 ### tensorboard --logdir='./tensorboard_log/PPO_step5_OpenDomain_contextual_answer' --port=6006
 ### poetry run python query/src/policy/ppo.py -e ImageNet1k_CIFAR100 -d 0 -c True -i True -n 100
 ### poetry run python query/src/policy/ppo.py -d 1 -e OpenBookQA -c True -n 100
-### poetry run python query/src/policy/ppo.py -e OpenDomain -c True -n 4
-### poetry run python query/src/policy/ppo.py -e Alfred -c True -n 50
-### poetry run python query/src/policy/ppo.py -e Waymo -c True -n 50
+### poetry run python query/src/policy/ppo.py -e OpenDomain -c True -d 3 -n 4
+### poetry run python query/src/policy/ppo.py -e Alfred -c True -d 3 -n 5
+### poetry run python query/src/policy/ppo.py -e Waymo -c True -d 3 -n 5
 import argparse
 
 import gymnasium as gym
@@ -70,7 +70,7 @@ elif "QA" in env_name:
     )
     log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenBookQA_{answer}/"
 elif "Domain" in env_name:
-    total_timesteps = 8000
+    total_timesteps = 10000
     answer = False
     # answer = True
     print(env_name + "-v1")
@@ -81,7 +81,7 @@ elif "Domain" in env_name:
         contextual=contextual,
         answer=answer,
         replace_sample=False,
-        max_steps=n_steps,
+        save_freq=n_steps,
     )
     tag = ""
     if contextual:
@@ -91,8 +91,8 @@ elif "Domain" in env_name:
     log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenDomain{tag}/"
 elif "Alfred" in env_name:
     print(env_name + "-v1")
-    # reward_metric = "SR"  # "PLWGC"
-    reward_metric = "GC+PLW"
+    reward_metric = "SR"  # "PLWGC"
+    # reward_metric = "GC+PLW"
     total_timesteps = 13000
     env = gym.make(
         env_name + "-v1",
@@ -103,10 +103,11 @@ elif "Alfred" in env_name:
         floor_plan=True,
         replace=False,
         reward_metric=reward_metric,
+        save_freq=n_steps,
     )
     log_path = f"./tensorboard_log/PPO_step{n_steps}_Alfred_{reward_metric}/"
 elif "Waymo" in env_name:
-    total_timesteps = 10000
+    total_timesteps = 20000
     env = gym.make(
         env_name + "-v1",
         max_episode_steps=max_episode_steps,
@@ -114,6 +115,7 @@ elif "Waymo" in env_name:
         contextual=contextual,
         text=True,
         replace=False,
+        save_freq=n_steps,
     )
     log_path = f"./tensorboard_log/PPO_step{n_steps}_Waymo/"
 else:
@@ -122,17 +124,23 @@ else:
 ### train agent model
 ### hyperparameters of PPO to tune:
 policy = "MlpPolicy" if not args.return_image else "CnnPolicy"
+policy_kwargs = dict(
+    activation_fn=torch.nn.GELU,
+    # net_arch=dict(pi=[768 * 2, 512, 256], vf=[768 * 2, 512, 256]),
+    net_arch=[768, 512, 128, 64, 16],
+)
 model = PPO(
     policy,
-    # learning_rate=3e-4,  # 3e-4
-    # target_kl=0.1,
-    # ent_coef=0.01,
+    learning_rate=1e-4,  # 3e-4
+    target_kl=0.003,  # (0.003 to 0.03)
+    ent_coef=0.01,
+    policy_kwargs=policy_kwargs,
     env=env,
     n_steps=n_steps,
     batch_size=n_steps,
     verbose=0,
     gamma=0.0,
-    tensorboard_log=log_path,
+    # tensorboard_log=log_path,
     stats_window_size=int(1),
     device=device,
 )
