@@ -33,142 +33,157 @@ contextual_bandits = False
 ### idx
 model_idx = [i for i in bandits.keys()]
 
-### load subsets ###
-subsets = pd.read_csv(data_path + "vicuna-7b-v1.5_nochoice.csv")
-selected_indices = []
-idx = 0
-for _, row in subsets.iterrows():
-    if row["subdataset"] in subset_map.values():
-        selected_indices.append(idx)
-    idx += 1
-print(f"selected indices: {len(selected_indices)}")
 
-### load embeddings
-question_np = np.load(data_path + "clip_emb_question.npy")[selected_indices, :]
-context_np = np.load(data_path + "clip_emb_choices.npy")[selected_indices, :]
-model_answer_np = np.load(data_path + "clip_emb_answer.npy")[selected_indices, :]
-X_complete = np.concatenate(
-    (question_np, context_np, model_answer_np),
-    axis=1,
-)
-arr = np.random.choice(np.arange(X_complete.shape[0]), dataset_size, replace=True)
-# print(arr)
-print("X complete", X_complete.shape)
-X = X_complete[arr, :]
+def plot_mmlu(save=False, ax_=None):
+    ### load subsets ###
+    subsets = pd.read_csv(data_path + "vicuna-7b-v1.5_nochoice.csv")
+    selected_indices = []
+    idx = 0
+    for _, row in subsets.iterrows():
+        if row["subdataset"] in subset_map.values():
+            selected_indices.append(idx)
+        idx += 1
+    print(f"selected indices: {len(selected_indices)}")
 
-y_complete = np.load(data_path + "models_accnorm.npy")  # shape = [25256, 8]
-print("y complete", y_complete.shape)
-
-y_complete = y_complete[selected_indices, :]
-y_complete = y_complete[:, model_idx]
-y = y_complete[arr, :]
-
-print(X.shape)
-print(y.shape)
-assert X.shape[0] == y.shape[0], "X and y should have the same number of rows"
-assert (
-    X_complete.shape[0] == y_complete.shape[0]
-), "X_complete and y_complete should have the same number of rows"
-
-### calculate optimal reward
-opt_ = y_complete.max(axis=1)  # shape: (dataset_size, )
-opt_avg = opt_.mean()
-opt_ = np.cumsum(opt_) / (np.arange(opt_.shape[0]) + 1)
-print("Optimal mean reward: ", opt_avg)
-print("Overall best arm: ", y_complete.mean(axis=0).argmax())
-print("Best arm reward: ", y_complete.mean(axis=0).max())
-print("Overall worst arm: ", y_complete.mean(axis=0).argmin())
-print("Worst arm reward: ", y_complete.mean(axis=0).min())
-print("arms: ", y_complete.mean(axis=0))
-
-if contextual_bandits:
-    ### load cumulative reward
-    rewards_ucb = np.load(
-        f"./synced_data/cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy"
+    ### load embeddings
+    question_np = np.load(data_path + "clip_emb_question.npy")[selected_indices, :]
+    context_np = np.load(data_path + "clip_emb_choices.npy")[selected_indices, :]
+    model_answer_np = np.load(data_path + "clip_emb_answer.npy")[selected_indices, :]
+    X_complete = np.concatenate(
+        (question_np, context_np, model_answer_np),
+        axis=1,
     )
-    rewards_egr = np.load(
-        f"./synced_data/cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy"
-    )
-    rewards_lucb = np.load(
-        f"./synced_data/cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy"
-    )
+    arr = np.random.choice(np.arange(X_complete.shape[0]), dataset_size, replace=True)
+    # print(arr)
+    print("X complete", X_complete.shape)
+    X = X_complete[arr, :]
 
-### calculate optimal reward
-rewards_opt = np.array(int(y.shape[0] / batch_size) * [y.max(axis=1).mean()])
+    y_complete = np.load(data_path + "models_accnorm.npy")  # shape = [25256, 8]
+    print("y complete", y_complete.shape)
 
-### load PPO reward
-ppo = pd.read_csv(f"./synced_data/cumulative_reward/mmlu_step{batch_size}.csv")
-### pandas to numpy
-rewards_ppo = ppo["mean_reward"].to_numpy()[: rewards_opt.shape[0]]
-print("PPO mean reward: ", rewards_ppo.shape)
-rcParams["figure.figsize"] = 14, 8
-lwd = 5
-cmap = plt.get_cmap("tab20")
-colors = plt.cm.tab20(np.linspace(0, 1, 20))
+    y_complete = y_complete[selected_indices, :]
+    y_complete = y_complete[:, model_idx]
+    y = y_complete[arr, :]
 
-ax = plt.subplot(111)
-if contextual_bandits:
-    plt.plot(
-        get_mean_reward(rewards_ucb, batch_size),
-        label=f"Bootstrapped UCB (C.I.={percentile}%)",
+    assert X.shape[0] == y.shape[0], "X and y should have the same number of rows"
+    assert (
+        X_complete.shape[0] == y_complete.shape[0]
+    ), "X_complete and y_complete should have the same number of rows"
+
+    ### calculate optimal reward
+    opt_ = y_complete.max(axis=1)  # shape: (dataset_size, )
+    opt_avg = opt_.mean()
+    opt_ = np.cumsum(opt_) / (np.arange(opt_.shape[0]) + 1)
+    print("Optimal mean reward: ", opt_avg)
+    print("Overall best arm: ", y_complete.mean(axis=0).argmax())
+    print("Best arm reward: ", y_complete.mean(axis=0).max())
+    print("Overall worst arm: ", y_complete.mean(axis=0).argmin())
+    print("Worst arm reward: ", y_complete.mean(axis=0).min())
+    print("arms: ", y_complete.mean(axis=0))
+
+    if contextual_bandits:
+        ### load cumulative reward
+        rewards_ucb = np.load(
+            f"./synced_data/cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy"
+        )
+        rewards_egr = np.load(
+            f"./synced_data/cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy"
+        )
+        rewards_lucb = np.load(
+            f"./synced_data/cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy"
+        )
+
+    ### calculate optimal reward
+    rewards_opt = np.array(int(y.shape[0] / batch_size) * [y.max(axis=1).mean()])
+
+    ### load PPO reward
+    ppo = pd.read_csv(f"./synced_data/cumulative_reward/mmlu_step{batch_size}.csv")
+    ### pandas to numpy
+    rewards_ppo = ppo["mean_reward"].to_numpy()[: rewards_opt.shape[0]]
+    steps = ppo["Step"].to_numpy()[: rewards_opt.shape[0]]
+    rcParams["figure.figsize"] = 14, 8
+    lwd = 5
+    cmap = plt.get_cmap("tab20")
+    colors = plt.cm.tab20(np.linspace(0, 1, 20))
+    ax = plt.subplot(111) if ax_ is None else ax_
+
+    if contextual_bandits:
+        ax.plot(
+            steps,
+            get_mean_reward(rewards_ucb, batch_size),
+            label=f"Bootstrapped UCB (C.I.={percentile}%)",
+            linewidth=lwd,
+            color=colors[0],
+        )
+        ax.plot(
+            steps,
+            get_mean_reward(rewards_egr, batch_size),
+            label="$\epsilon$-Greedy",
+            linewidth=lwd,
+            color=colors[6],
+        )
+        ax.plot(
+            steps,
+            get_mean_reward(rewards_lucb, batch_size),
+            label=f"Logistic UCB (C.I.={percentile}%)",
+            linewidth=lwd,
+            color=colors[8],
+        )
+
+    ax.plot(steps, rewards_ppo, label="PPO (ours)", linewidth=lwd, color=colors[12])
+    ax.plot(
+        steps,
+        rewards_opt,
+        label="Optimal Policy",
         linewidth=lwd,
-        color=colors[0],
+        color=colors[2],
+        ls="dashed",
     )
-    plt.plot(
-        get_mean_reward(rewards_egr, batch_size),
-        label="$\epsilon$-Greedy",
+    ax.plot(
+        steps,
+        np.repeat(y.mean(axis=0).max(), len(rewards_ppo)),
+        label="Overall Best Arm",
         linewidth=lwd,
-        color=colors[6],
-    )  ### (p0=20%, decay=0.9999) , marker='o', linestyle=':'
-    plt.plot(
-        get_mean_reward(rewards_lucb, batch_size),
-        label=f"Logistic UCB (C.I.={percentile}%)",
-        linewidth=lwd,
-        color=colors[8],
+        color=colors[1],
+        ls="-.",
     )
-plt.plot(rewards_ppo, label="PPO", linewidth=lwd, color=colors[12])
-plt.plot(
-    rewards_opt,
-    label="Optimal Policy",
-    linewidth=lwd,
-    color=colors[2],
-    ls="dashed",
-)
-plt.plot(
-    np.repeat(y.mean(axis=0).max(), len(rewards_ppo)),
-    label="Overall Best Arm (no context)",
-    linewidth=lwd,
-    color=colors[1],
-    ls="-.",
-)
-plt.plot(
-    np.repeat(y.mean(axis=0).min(), len(rewards_ppo)),
-    label="Overall Worst Arm (no context)",
-    linewidth=lwd,
-    color=colors[4],
-    ls=":",
-)
+    ax.plot(
+        steps,
+        np.repeat(y.mean(axis=0).min(), len(rewards_ppo)),
+        label="Overall Worst Arm",
+        linewidth=lwd,
+        color=colors[4],
+        ls=":",
+    )
 
-# import warnings
-box = ax.get_position()
-ax.set_position([box.x0, box.y0 + box.height * 0.1, box.width, box.height * 1.25])
-ax.legend(
-    loc="upper center",
-    bbox_to_anchor=(0.5, 1.27),
-    fancybox=True,
-    ncol=3,
-    prop={"size": 20},
-)
+    if save:
+        box = ax.get_position()
+        ax.set_position(
+            [box.x0, box.y0 + box.height * 0.1, box.width, box.height * 1.25]
+        )
+        ax.legend(
+            loc="upper center",
+            bbox_to_anchor=(0.5, 1.27),
+            fancybox=True,
+            ncol=2,
+            prop={"size": 20},
+        )
 
-plt.tick_params(axis="both", which="major", labelsize=25)
+        ax.tick_params(axis="both", which="major", labelsize=25)
+        ax.grid()
+        ax.set_xlabel("Steps", size=25)
+        ax.set_ylabel("Cumulative Mean Success Rate", size=25)
+        ax.set_title("ALFRED", size=30)
+        ax.set_ylim(0.6, 0.9)
+        ax.set_yticks(np.arange(0.6, 0.91, 0.05))
+        plt.savefig(
+            f"./plot/Alfred/{dataset}_ds{dataset_size}_bs{batch_size}_per{percentile}.png",
+            bbox_inches="tight",
+        )
+        return
+    else:
+        return ax
 
-plt.xlabel(f"Rounds (models were updated every {batch_size} rounds)", size=25)
-plt.ylabel("Cumulative Mean Reward", size=25)
-plt.title("Question Answering", size=30)
-plt.grid()
-plt.ylim(0.6, 0.9)
-plt.yticks(np.arange(0.6, 0.91, 0.05))
-plt.savefig(
-    f"./plot/mmlu/{dataset}_ds{dataset_size}_bs{batch_size}_per{percentile}.png",
-    bbox_inches="tight",
-)
+
+if __name__ == "__main__":
+    plot_mmlu(save=True)
