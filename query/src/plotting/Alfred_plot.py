@@ -1,5 +1,3 @@
-import json
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -7,62 +5,66 @@ from pylab import rcParams
 from utils import get_mean_reward
 
 bandits = {
-    # 0: "vicuna-7b-v1.5",
-    # 1: "falcon-180B",
-    2: "falcon-180B-chat",
-    # 3: "qCammel-70-x",
-    4: "Llama-2-70b-instruct",
-    # 5: "Llama-2-70b-instruct-v2",
-    6: "StableBeluga-13B",
-    # 7: "airoboros-l2-70b",
+    0: "FILM",
+    1: "HiTUT",
+    2: "HLSM",
 }
-subset_map = json.load(open("synced_data/mmlu/subdatasets.json"))
 
-data_path = "synced_data/csv/mmlu/"
+data_path = "synced_data/csv/alfred_data/"
+model_path = "synced_data/cumulative_reward/"
 
 # batch size - algorithms will be refit after N rounds
 batch_size = 5
-dataset_size = 12000
+dataset_size = 13000
 percentile = 95
 random_seed = 42
-dataset = "mmlu"
-### set random seed
-np.random.seed(random_seed)
+max_iter = 2000
 contextual_bandits = False
 
-### idx
-model_idx = [i for i in bandits.keys()]
+### set random seed
+np.random.seed(random_seed)
+
+### load token length
+token_len = np.load(data_path + "instruct_token_length.npy")  # (13128,)
+token_len = token_len.reshape(-1, 1)  # (13128, 1)
+token_len = np.repeat(token_len, len(bandits), axis=1)  # (39384, 3)
+token_len[:, 0] = 0
+alpha = 0.05
+beta = 0.005
 
 
-def plot_mmlu(save=False, ax_=None):
-    ### load subsets ###
-    subsets = pd.read_csv(data_path + "vicuna-7b-v1.5_nochoice.csv")
-    selected_indices = []
-    idx = 0
-    for _, row in subsets.iterrows():
-        if row["subdataset"] in subset_map.values():
-            selected_indices.append(idx)
-        idx += 1
-    print(f"selected indices: {len(selected_indices)}")
-
+def plot_alfred(save=False, ax_=None, reward_metric="SR"):
+    # SR, GC+PLW
+    dataset = "alfred_" + reward_metric
     ### load embeddings
-    question_np = np.load(data_path + "clip_emb_question.npy")[selected_indices, :]
-    context_np = np.load(data_path + "clip_emb_choices.npy")[selected_indices, :]
-    model_answer_np = np.load(data_path + "clip_emb_answer.npy")[selected_indices, :]
-    X_complete = np.concatenate(
-        (question_np, context_np, model_answer_np),
-        axis=1,
-    )
-    arr = np.random.choice(np.arange(X_complete.shape[0]), dataset_size, replace=True)
-    # print(arr)
-    print("X complete", X_complete.shape)
+    X_complete = np.load(data_path + "clip_emb.npy")
+    arm_results = np.load(data_path + "arm_results.npy")
+
+    if reward_metric == "GC":
+        y_complete = arm_results[1, :, :]
+    elif reward_metric == "PLWGC":
+        y_complete = arm_results[1, :, :] * (
+            arm_results[3, :, :]
+            / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
+        )
+    elif reward_metric == "SR":
+        y_complete = arm_results[0, :, :]
+    elif reward_metric == "PLWSR":
+        y_complete = arm_results[0, :, :] * (
+            arm_results[3, :, :]
+            / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
+        )
+    elif reward_metric == "GC+PLW":
+        gc = arm_results[1, :, :]
+        L_ratio = arm_results[3, :, :] / np.maximum(
+            arm_results[2, :, :], arm_results[3, :, :]
+        )
+        L = arm_results[2, :, :]
+        # y_complete = 0.5 * gc + 0.5 * gc * L_ratio - beta * token_len
+        y_complete = 0.5 * gc - alpha * np.log10(L) - beta * token_len
+
+    arr = np.random.choice(np.arange(X_complete.shape[0]), dataset_size, replace=False)
     X = X_complete[arr, :]
-
-    y_complete = np.load(data_path + "models_accnorm.npy")  # shape = [25256, 8]
-    print("y complete", y_complete.shape)
-
-    y_complete = y_complete[selected_indices, :]
-    y_complete = y_complete[:, model_idx]
     y = y_complete[arr, :]
 
     assert X.shape[0] == y.shape[0], "X and y should have the same number of rows"
@@ -81,23 +83,26 @@ def plot_mmlu(save=False, ax_=None):
     print("Worst arm reward: ", y_complete.mean(axis=0).min())
     print("arms: ", y_complete.mean(axis=0))
 
+    ### load cumulative reward
     if contextual_bandits:
-        ### load cumulative reward
         rewards_ucb = np.load(
-            f"./synced_data/cumulative_reward/BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy"
+            model_path
+            + f"BootstrappedUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy"
         )
         rewards_egr = np.load(
-            f"./synced_data/cumulative_reward/EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy"
+            model_path
+            + f"EpsilonGreedy_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy"
         )
         rewards_lucb = np.load(
-            f"./synced_data/cumulative_reward/LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy"
+            model_path
+            + f"LogisticUpperConfidenceBound_ds{dataset_size}_bs{batch_size}_per{percentile}_{dataset}.npy"
         )
 
     ### calculate optimal reward
     rewards_opt = np.array(int(y.shape[0] / batch_size) * [y.max(axis=1).mean()])
 
     ### load PPO reward
-    ppo = pd.read_csv(f"./synced_data/cumulative_reward/mmlu_step{batch_size}.csv")
+    ppo = pd.read_csv(model_path + f"alfred_{reward_metric}_step{batch_size}.csv")
     ### pandas to numpy
     rewards_ppo = ppo["mean_reward"].to_numpy()[: rewards_opt.shape[0]]
     steps = ppo["Step"].to_numpy()[: rewards_opt.shape[0]]
@@ -142,7 +147,7 @@ def plot_mmlu(save=False, ax_=None):
     ax.plot(
         steps,
         np.repeat(y.mean(axis=0).max(), len(rewards_ppo)),
-        label="Overall Best Arm",
+        label="Overall Best Arm (no context)",
         linewidth=lwd,
         color=colors[1],
         ls="-.",
@@ -150,7 +155,7 @@ def plot_mmlu(save=False, ax_=None):
     ax.plot(
         steps,
         np.repeat(y.mean(axis=0).min(), len(rewards_ppo)),
-        label="Overall Worst Arm",
+        label="Overall Worst Arm (no context)",
         linewidth=lwd,
         color=colors[4],
         ls=":",
@@ -172,10 +177,10 @@ def plot_mmlu(save=False, ax_=None):
         ax.tick_params(axis="both", which="major", labelsize=25)
         ax.grid()
         ax.set_xlabel("Steps", size=25)
-        ax.set_ylabel("Cumulative Mean Success Rate", size=25)
+        ax.set_xlabel(f"Cumulative Mean {reward_metric}", size=25)
         ax.set_title("ALFRED", size=30)
-        ax.set_ylim(0.6, 0.9)
-        ax.set_yticks(np.arange(0.6, 0.91, 0.05))
+        ymin, ymax = (0, 0.21) if reward_metric == "GC+SLW" else (0.2, 0.51)
+        ax.set_xticks(np.arange(ymin, ymax, 0.05))
         plt.savefig(
             f"./plot/Alfred/{dataset}_ds{dataset_size}_bs{batch_size}_per{percentile}.png",
             bbox_inches="tight",
@@ -186,4 +191,4 @@ def plot_mmlu(save=False, ax_=None):
 
 
 if __name__ == "__main__":
-    plot_mmlu(save=True)
+    plot_alfred(save=True)

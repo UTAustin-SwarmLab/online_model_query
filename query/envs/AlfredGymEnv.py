@@ -34,6 +34,9 @@ class AlfredGymEnv(gym.Env):
         floor_plan: bool = True,
         replace_sample: bool = True,
         reward_metric: str = "GC",
+        alpha: float = 0.05,
+        beta: float = 0.005,
+        save_freq: int = 5,
         **kwargs,
     ) -> None:
         """
@@ -41,7 +44,11 @@ class AlfredGymEnv(gym.Env):
             emb_size: size of the embedding
             device: device to run the clip model
             contextual: whether to use contextual bandit
+            low_level: whether to use low level instruction
+            floor_plan: whether to use floor plan
             replace_sample: whether to replace the sample
+            reward_metric: the reward metric to use
+            beta: the beta parameter for the token cost
         """
         super(AlfredGymEnv, self).__init__()
 
@@ -65,6 +72,7 @@ class AlfredGymEnv(gym.Env):
         self.low_level = low_level
         self.floor_plan = floor_plan
         self.reward_metric = reward_metric
+        self.save_freq = save_freq
 
         ### input is an embedding
         self.observation_space = spaces.Box(
@@ -129,6 +137,14 @@ class AlfredGymEnv(gym.Env):
             arm_results = np.load(data_path + "arm_results.npy")
             print("loaded data")
 
+        ### load token length
+        token_len = np.load(data_path + "instruct_token_length.npy")  # (13128,)
+        if low_level:
+            token_len += np.load(data_path + "low_instruct_token_length.npy")
+        token_len = token_len.reshape(dataset_size, 1)  # (13128, 1)
+        token_len = np.repeat(token_len, len(bandits), axis=1)  # (39384, 3)
+        token_len[:, 0] = 0
+
         if reward_metric == "GC":
             self.arm_results = arm_results[1, :, :]
         elif reward_metric == "PLWGC":
@@ -145,11 +161,12 @@ class AlfredGymEnv(gym.Env):
             )
         elif reward_metric == "GC+PLW":
             gc = arm_results[1, :, :]
-            plw = arm_results[1, :, :] * (
-                arm_results[3, :, :]
-                / np.maximum(arm_results[2, :, :], arm_results[3, :, :])
+            L_ratio = arm_results[3, :, :] / np.maximum(
+                arm_results[2, :, :], arm_results[3, :, :]
             )
-            self.arm_results = 0.5 * gc + 0.5 * plw
+            L = arm_results[2, :, :]
+            # self.arm_results = 0.5 * gc + 0.5 * gc * L_ratio - beta * token_len
+            self.arm_results = 0.5 * gc - alpha * np.log10(L) - beta * token_len
 
         ### shuffle the arm results
         np.random.seed(42)
@@ -170,6 +187,7 @@ class AlfredGymEnv(gym.Env):
         print("Best arm reward: ", self.arm_results.mean(axis=0).max())
         print("Worst arm reward: ", self.arm_results.mean(axis=0).min())
         print("arms: ", self.arm_results.mean(axis=0))
+        # input("Press Enter to continue...")
 
         return
 
@@ -230,20 +248,23 @@ class AlfredGymEnv(gym.Env):
             )
         else:
             observation = np.ones((self.emb_size,), dtype="float32")
-
         assert observation.shape == (self.emb_size,), f"obs shape: {observation.shape}"
 
         ### update next state
         self.state = next_idx  # update current idx
         self.cnt += 1
+        self.cumulative_reward += reward
+        if self.cnt % 1000 == 0:
+            print(
+                f"step: {self.cnt}, Cum Reward",
+                self.cumulative_reward / self.cnt,
+            )
+        if self.cnt % self.save_freq == 0 and self.cnt <= self.num_samples:
+            self.mean_reward_dict[self.cnt] = self.cumulative_reward / self.cnt
 
         ### update action list
         self.action_list[action] += 1
-        self.cumulative_reward += reward
-        if self.cnt % 1000 == 0:
-            print(f"step: {self.cnt}, Cum Reward", self.cumulative_reward / self.cnt)
-        if self.cnt % 5 == 0:
-            self.mean_reward_dict[self.cnt] = self.cumulative_reward / self.cnt
+
         return (observation, reward, terminated, truncated, info)
 
     def reset(
@@ -265,12 +286,7 @@ class AlfredGymEnv(gym.Env):
 
         info = {}
         self.state = -1
-        # print(f"reset: {self.cnt}")
-        observation, _, _, _, info = self.step(
-            0,
-            _idx=_idx,
-        )
-        self.cnt -= 1  ### Bug...
+        observation, _, _, _, info = self.step(0, _idx=_idx)
         return observation, info
 
     def save_cum_reward(self):
@@ -281,7 +297,7 @@ class AlfredGymEnv(gym.Env):
         df["Step"] = self.mean_reward_dict.keys()
         df["mean_reward"] = self.mean_reward_dict.values()
         df.to_csv(
-            f"synced_data/cumulative_reward/alfred_{self.reward_metric}_step5.csv"
+            f"synced_data/cumulative_reward/alfred_{self.reward_metric}_step{self.save_freq}.csv"
         )
         return
 
@@ -293,7 +309,12 @@ class AlfredGymEnv(gym.Env):
 # test emv with main function
 if __name__ == "__main__":
     # Create the Gym environment
-    env = AlfredGymEnv(low_level=True, floor_plan=True, contextual=True)
+    env = AlfredGymEnv(
+        low_level=False,
+        floor_plan=True,
+        contextual=True,
+        reward_metric="GC+PLW",
+    )
     random = True
 
     # Reset the environment

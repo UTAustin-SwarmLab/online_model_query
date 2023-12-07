@@ -1,5 +1,3 @@
-import json
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -7,62 +5,49 @@ from pylab import rcParams
 from utils import get_mean_reward
 
 bandits = {
-    # 0: "vicuna-7b-v1.5",
-    # 1: "falcon-180B",
-    2: "falcon-180B-chat",
-    # 3: "qCammel-70-x",
-    4: "Llama-2-70b-instruct",
-    # 5: "Llama-2-70b-instruct-v2",
-    6: "StableBeluga-13B",
-    # 7: "airoboros-l2-70b",
+    0: "llava-v1.5-7b",
+    1: "llava-v1.5-13b",
+    2: "llava-v1.5-13b-lora",
 }
-subset_map = json.load(open("synced_data/mmlu/subdatasets.json"))
-
-data_path = "synced_data/csv/mmlu/"
+data_path = "synced_data/csv/waymo/"
 
 # batch size - algorithms will be refit after N rounds
 batch_size = 5
-dataset_size = 12000
+dataset_size = 20000
 percentile = 95
 random_seed = 42
-dataset = "mmlu"
+dataset = "Waymo"
 ### set random seed
 np.random.seed(random_seed)
 contextual_bandits = False
 
-### idx
-model_idx = [i for i in bandits.keys()]
 
-
-def plot_mmlu(save=False, ax_=None):
-    ### load subsets ###
-    subsets = pd.read_csv(data_path + "vicuna-7b-v1.5_nochoice.csv")
-    selected_indices = []
-    idx = 0
-    for _, row in subsets.iterrows():
-        if row["subdataset"] in subset_map.values():
-            selected_indices.append(idx)
-        idx += 1
-    print(f"selected indices: {len(selected_indices)}")
-
+def plot_waymo(save=False, ax_=None):
     ### load embeddings
-    question_np = np.load(data_path + "clip_emb_question.npy")[selected_indices, :]
-    context_np = np.load(data_path + "clip_emb_choices.npy")[selected_indices, :]
-    model_answer_np = np.load(data_path + "clip_emb_answer.npy")[selected_indices, :]
+    q_emb = np.load(data_path + "clip_emb_question.npy")  # 10x768
+    q_emb = np.tile(q_emb, (2000, 1))  # 20000x768
+    token_len = np.load(data_path + "question_token_length.npy")  # 10
+    token_len = np.tile(token_len, 2000)
+    token_len = token_len.reshape(-1, 1)  # 20000x1
+    token_len = np.repeat(token_len, 3, axis=1)  # 20000x3
+    token_len[:, 0] = 0  # no need to pay for the token cost
+    img_emb = np.load(data_path + "clip_emb_img.npy")  # 2000x768
+    img_emb = np.repeat(img_emb, 10, axis=0)
+    arm_results = np.load(data_path + "arm_results.npy")  # 20000x3
+    model_latency = np.load(data_path + "arm_results_time.npy")  # 20000x3
+
+    ### add image transmission time
+    model_latency[:, 1:] += 0.166 * 2
+
+    ### add acc and latency
     X_complete = np.concatenate(
-        (question_np, context_np, model_answer_np),
+        (q_emb, img_emb, arm_results),
         axis=1,
     )
     arr = np.random.choice(np.arange(X_complete.shape[0]), dataset_size, replace=True)
-    # print(arr)
     print("X complete", X_complete.shape)
     X = X_complete[arr, :]
-
-    y_complete = np.load(data_path + "models_accnorm.npy")  # shape = [25256, 8]
-    print("y complete", y_complete.shape)
-
-    y_complete = y_complete[selected_indices, :]
-    y_complete = y_complete[:, model_idx]
+    y_complete = arm_results
     y = y_complete[arr, :]
 
     assert X.shape[0] == y.shape[0], "X and y should have the same number of rows"
@@ -97,7 +82,7 @@ def plot_mmlu(save=False, ax_=None):
     rewards_opt = np.array(int(y.shape[0] / batch_size) * [y.max(axis=1).mean()])
 
     ### load PPO reward
-    ppo = pd.read_csv(f"./synced_data/cumulative_reward/mmlu_step{batch_size}.csv")
+    ppo = pd.read_csv(f"./synced_data/cumulative_reward/waymo_step{batch_size}.csv")
     ### pandas to numpy
     rewards_ppo = ppo["mean_reward"].to_numpy()[: rewards_opt.shape[0]]
     steps = ppo["Step"].to_numpy()[: rewards_opt.shape[0]]
@@ -121,7 +106,7 @@ def plot_mmlu(save=False, ax_=None):
             label="$\epsilon$-Greedy",
             linewidth=lwd,
             color=colors[6],
-        )
+        )  ### (p0=20%, decay=0.9999) , marker='o', linestyle=':'
         ax.plot(
             steps,
             get_mean_reward(rewards_lucb, batch_size),
@@ -129,7 +114,6 @@ def plot_mmlu(save=False, ax_=None):
             linewidth=lwd,
             color=colors[8],
         )
-
     ax.plot(steps, rewards_ppo, label="PPO (ours)", linewidth=lwd, color=colors[12])
     ax.plot(
         steps,
@@ -142,7 +126,7 @@ def plot_mmlu(save=False, ax_=None):
     ax.plot(
         steps,
         np.repeat(y.mean(axis=0).max(), len(rewards_ppo)),
-        label="Overall Best Arm",
+        label="Overall Best Arm (no context)",
         linewidth=lwd,
         color=colors[1],
         ls="-.",
@@ -150,7 +134,7 @@ def plot_mmlu(save=False, ax_=None):
     ax.plot(
         steps,
         np.repeat(y.mean(axis=0).min(), len(rewards_ppo)),
-        label="Overall Worst Arm",
+        label="Overall Worst Arm (no context)",
         linewidth=lwd,
         color=colors[4],
         ls=":",
@@ -165,7 +149,7 @@ def plot_mmlu(save=False, ax_=None):
             loc="upper center",
             bbox_to_anchor=(0.5, 1.27),
             fancybox=True,
-            ncol=2,
+            ncol=3,
             prop={"size": 20},
         )
 
@@ -173,11 +157,11 @@ def plot_mmlu(save=False, ax_=None):
         ax.grid()
         ax.set_xlabel("Steps", size=25)
         ax.set_ylabel("Cumulative Mean Success Rate", size=25)
-        ax.set_title("ALFRED", size=30)
-        ax.set_ylim(0.6, 0.9)
-        ax.set_yticks(np.arange(0.6, 0.91, 0.05))
+        ax.set_title("Waymo", size=30)
+        ax.set_ylim(0.75, 0.95)
+        ax.set_yticks(np.arange(0.75, 0.96, 0.05))
         plt.savefig(
-            f"./plot/Alfred/{dataset}_ds{dataset_size}_bs{batch_size}_per{percentile}.png",
+            f"./plot/{dataset}/{dataset}_ds{dataset_size}_bs{batch_size}_per{percentile}.png",
             bbox_inches="tight",
         )
         return
@@ -186,4 +170,4 @@ def plot_mmlu(save=False, ax_=None):
 
 
 if __name__ == "__main__":
-    plot_mmlu(save=True)
+    plot_waymo(save=True)

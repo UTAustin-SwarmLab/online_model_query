@@ -7,7 +7,7 @@ from pylab import rcParams
 from utils import get_mean_reward
 
 bandits = {
-    # 0: "vicuna-7b-v1.5",
+    0: "vicuna-7b-v1.5",
     # 1: "falcon-180B",
     2: "falcon-180B-chat",
     # 3: "qCammel-70-x",
@@ -26,6 +26,8 @@ dataset_size = 12000
 percentile = 95
 random_seed = 42
 dataset = "mmlu"
+alpha = 0.03
+beta = 0.0008
 ### set random seed
 np.random.seed(random_seed)
 contextual_bandits = False
@@ -34,7 +36,7 @@ contextual_bandits = False
 model_idx = [i for i in bandits.keys()]
 
 
-def plot_mmlu(save=False, ax_=None):
+def plot_mmlu_lat(save=False, ax_=None):
     ### load subsets ###
     subsets = pd.read_csv(data_path + "vicuna-7b-v1.5_nochoice.csv")
     selected_indices = []
@@ -54,15 +56,32 @@ def plot_mmlu(save=False, ax_=None):
         axis=1,
     )
     arr = np.random.choice(np.arange(X_complete.shape[0]), dataset_size, replace=True)
-    # print(arr)
     print("X complete", X_complete.shape)
     X = X_complete[arr, :]
 
-    y_complete = np.load(data_path + "models_accnorm.npy")  # shape = [25256, 8]
-    print("y complete", y_complete.shape)
+    arm_results = np.load(data_path + "models_accnorm.npy")  # shape = [25256, 8]
+    arm_results = arm_results[:, model_idx]
+
+    ### load latency data
+    model_latency = np.zeros_like(arm_results)
+    idx = 0
+    for key, value in bandits.items():
+        latency = pd.read_csv(f"synced_data/csv/mmlu/{value}_answer_time.csv")
+        latency = np.array(latency["answer_time"] + latency["load_time"])
+        repeat_cnt = arm_results.shape[0] // len(latency) + 1
+        latency = np.tile(latency, repeat_cnt)
+        model_latency[:, idx] = latency[selected_indices]
+        idx += 1
+
+    ### load token costs
+    token_len = np.zeros_like(arm_results)
+    token_length = np.load("synced_data/csv/mmlu/question_token_length.npy")
+    token_len[:, 1:] = token_length[selected_indices, np.newaxis]
+
+    ### add acc and latency
+    y_complete = arm_results - alpha * np.log10(model_latency) - beta * token_len
 
     y_complete = y_complete[selected_indices, :]
-    y_complete = y_complete[:, model_idx]
     y = y_complete[arr, :]
 
     assert X.shape[0] == y.shape[0], "X and y should have the same number of rows"
@@ -97,7 +116,9 @@ def plot_mmlu(save=False, ax_=None):
     rewards_opt = np.array(int(y.shape[0] / batch_size) * [y.max(axis=1).mean()])
 
     ### load PPO reward
-    ppo = pd.read_csv(f"./synced_data/cumulative_reward/mmlu_step{batch_size}.csv")
+    ppo = pd.read_csv(
+        f"./synced_data/cumulative_reward/mmlu_latency_step{batch_size}.csv"
+    )
     ### pandas to numpy
     rewards_ppo = ppo["mean_reward"].to_numpy()[: rewards_opt.shape[0]]
     steps = ppo["Step"].to_numpy()[: rewards_opt.shape[0]]
@@ -121,7 +142,7 @@ def plot_mmlu(save=False, ax_=None):
             label="$\epsilon$-Greedy",
             linewidth=lwd,
             color=colors[6],
-        )
+        )  ### (p0=20%, decay=0.9999) , marker='o', linestyle=':'
         ax.plot(
             steps,
             get_mean_reward(rewards_lucb, batch_size),
@@ -129,7 +150,6 @@ def plot_mmlu(save=False, ax_=None):
             linewidth=lwd,
             color=colors[8],
         )
-
     ax.plot(steps, rewards_ppo, label="PPO (ours)", linewidth=lwd, color=colors[12])
     ax.plot(
         steps,
@@ -142,7 +162,7 @@ def plot_mmlu(save=False, ax_=None):
     ax.plot(
         steps,
         np.repeat(y.mean(axis=0).max(), len(rewards_ppo)),
-        label="Overall Best Arm",
+        label="Overall Best Arm (no context)",
         linewidth=lwd,
         color=colors[1],
         ls="-.",
@@ -150,7 +170,7 @@ def plot_mmlu(save=False, ax_=None):
     ax.plot(
         steps,
         np.repeat(y.mean(axis=0).min(), len(rewards_ppo)),
-        label="Overall Worst Arm",
+        label="Overall Worst Arm (no context)",
         linewidth=lwd,
         color=colors[4],
         ls=":",
@@ -174,8 +194,8 @@ def plot_mmlu(save=False, ax_=None):
         ax.set_xlabel("Steps", size=25)
         ax.set_ylabel("Cumulative Mean Success Rate", size=25)
         ax.set_title("ALFRED", size=30)
-        ax.set_ylim(0.6, 0.9)
-        ax.set_yticks(np.arange(0.6, 0.91, 0.05))
+        ax.set_ylim(0.5, 0.8)
+        ax.set_yticks(np.arange(0.5, 0.81, 0.05))
         plt.savefig(
             f"./plot/Alfred/{dataset}_ds{dataset_size}_bs{batch_size}_per{percentile}.png",
             bbox_inches="tight",
@@ -186,4 +206,4 @@ def plot_mmlu(save=False, ax_=None):
 
 
 if __name__ == "__main__":
-    plot_mmlu(save=True)
+    plot_mmlu_lat(save=True)

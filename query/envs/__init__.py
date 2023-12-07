@@ -32,14 +32,25 @@ register(
 )
 
 register(
+    id="OpenDomainLatency-v1",
+    max_episode_steps=1e5,
+    entry_point="query.envs.OpenDomainLatencyGymEnv:OpenDomainLatencyGymEnv",
+)
+
+register(
     id="Alfred-v1",
     max_episode_steps=1e5,
     entry_point="query.envs.AlfredGymEnv:AlfredGymEnv",
 )
 
-
 register(
     id="Waymo-v1",
     max_episode_steps=1e5,
     entry_point="query.envs.WaymoGymEnv:WaymoGymEnv",
+)
+
+register(
+    id="WaymoLatency-v1",
+    max_episode_steps=1e5,
+    entry_point="query.envs.WaymoLatencyGymEnv:WaymoLatencyGymEnv",
 )

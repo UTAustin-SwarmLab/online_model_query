@@ -122,6 +122,6 @@ plt.title("Image Classification", size=30)
 plt.grid()
 # plt.show()
 plt.savefig(
-    f"./plot/image_classify_ds{dataset_size}_bs{batch_size}_per{percetile}.png",
+    f"./plot/others/image_classify_ds{dataset_size}_bs{batch_size}_per{percetile}.png",
     bbox_inches="tight",
 )

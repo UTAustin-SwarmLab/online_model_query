@@ -1,12 +1,6 @@
-### tensorboard --logdir='./tensorboard_log/PPO_ImageNet1k' --port=6006
-### tensorboard --logdir='./tensorboard_log/PPO_step100_OpenBookQA_True' --port=6006
-### tensorboard --logdir='./tensorboard_log/PPO_step50_Alfred_PLWGC' --port=6006
-### tensorboard --logdir='./tensorboard_log/PPO_step5_OpenDomain_contextual_answer' --port=6006
-### poetry run python query/src/policy/ppo.py -e ImageNet1k_CIFAR100 -d 0 -c True -i True -n 100
-### poetry run python query/src/policy/ppo.py -d 1 -e OpenBookQA -c True -n 100
-### poetry run python query/src/policy/ppo.py -e OpenDomain -c True -d 3 -n 4
-### poetry run python query/src/policy/ppo.py -e Alfred -c True -d 3 -n 5
-### poetry run python query/src/policy/ppo.py -e Waymo -c True -d 3 -n 5
+### poetry run python query/src/policy/ppo_latency.py -e OpenDomain -c True -n 4
+### poetry run python query/src/policy/ppo_latency.py -e Alfred -c True -n 50
+### poetry run python query/src/policy/ppo_latency.py -e Waymo -c True -n 50
 import argparse
 
 import gymnasium as gym
@@ -25,7 +19,7 @@ parser.add_argument(
 parser.add_argument(
     "-i", "--return_image", type=bool, help="return image or not", default=False
 )
-parser.add_argument("-n", "--step", type=int, help="steps per update", default=100)
+parser.add_argument("-n", "--step", type=int, help="steps per update", default=25)
 args = parser.parse_args()
 print(args)
 
@@ -46,41 +40,19 @@ else:
     model_path = f"./synced_data/models/{env_name}_step{n_steps}_PPO_non_contextual_img{args.return_image}.zip"
 
 set_random_seed(42, using_cuda=device != "cpu")
-if "ImageNet" in env_name:
-    env = gym.make(
-        env_name + "-v1",
-        max_episode_steps=max_episode_steps,
-        device=device,
-        p=[5 / 6, 1 / 6],
-        return_image=args.return_image,
-        contextual=contextual,
-    )
-    log_path = f"./tensorboard_log/PPO_step{n_steps}_ImageNet1k_img{args.return_image}/"
-elif "QA" in env_name:
-    answer = True
-    total_timesteps = 50000
-    print(env_name + "-v1")
-    env = gym.make(
-        env_name + "-v1",
-        max_episode_steps=max_episode_steps,
-        device=device,
-        contextual=contextual,
-        answer=answer,
-        replace_sample=False,
-    )
-    log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenBookQA_{answer}/"
-elif "Domain" in env_name:
+if "Domain" in env_name:
     total_timesteps = 10000
     answer = False
     # answer = True
     print(env_name + "-v1")
     env = gym.make(
-        env_name + "-v1",
+        "OpenDomainLatency-v1",
         max_episode_steps=max_episode_steps,
         device=device,
         contextual=contextual,
         answer=answer,
         replace_sample=False,
+        max_steps=n_steps,
         save_freq=n_steps,
     )
     tag = ""
@@ -88,28 +60,11 @@ elif "Domain" in env_name:
         tag += "_contextual"
     if answer:
         tag += "_answer"
-    log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenDomain{tag}/"
-elif "Alfred" in env_name:
-    print(env_name + "-v1")
-    reward_metric = "SR"  # "PLWGC"
-    # reward_metric = "GC+PLW"
-    total_timesteps = 13000
-    env = gym.make(
-        env_name + "-v1",
-        max_episode_steps=max_episode_steps,
-        device=device,
-        contextual=contextual,
-        low_level=False,
-        floor_plan=True,
-        replace=False,
-        reward_metric=reward_metric,
-        save_freq=n_steps,
-    )
-    log_path = f"./tensorboard_log/PPO_step{n_steps}_Alfred_{reward_metric}/"
+    log_path = f"./tensorboard_log/PPO_latency_step{n_steps}_OpenDomain{tag}/"
 elif "Waymo" in env_name:
     total_timesteps = 20000
     env = gym.make(
-        env_name + "-v1",
+        "WaymoLatency-v1",
         max_episode_steps=max_episode_steps,
         device=device,
         contextual=contextual,
@@ -117,7 +72,7 @@ elif "Waymo" in env_name:
         replace=False,
         save_freq=n_steps,
     )
-    log_path = f"./tensorboard_log/PPO_step{n_steps}_Waymo/"
+    log_path = f"./tensorboard_log/PPO_latency_step{n_steps}_Waymo/"
 else:
     raise ValueError("env_name not found: " + env_name)
 

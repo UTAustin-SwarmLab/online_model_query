@@ -1,4 +1,3 @@
-import json
 from typing import Tuple
 
 import gymnasium as gym
@@ -10,20 +9,16 @@ from gymnasium import spaces
 import query.envs  # noqa: F401
 
 bandits = {
-    0: "vicuna-7b-v1.5",
-    # 1: "falcon-180B",
-    2: "falcon-180B-chat",
-    # 3: "qCammel-70-x",
-    4: "Llama-2-70b-instruct",
-    # 5: "Llama-2-70b-instruct-v2",
-    6: "StableBeluga-13B",
-    # 7: "airoboros-l2-70b",
+    0: "llava-v1.5-7b",
+    1: "llava-v1.5-13b",
+    2: "llava-v1.5-13b-lora",
 }
 
-subset_map = json.load(open("synced_data/mmlu/subdatasets.json"))
+data_path = "synced_data/csv/waymo/"
+dataset_size = 20000
 
 
-class OpenDomainLatencyGymEnv(gym.Env):
+class WaymoLatencyGymEnv(gym.Env):
     """Custom Environment that follows gym interface"""
 
     metadata = {"render_modes": ["human"]}
@@ -31,43 +26,43 @@ class OpenDomainLatencyGymEnv(gym.Env):
     def __init__(
         self,
         emb_size: int = 768,
-        answer: bool = False,
         device: str or torch.device = "cpu",
-        contextual: bool = True,
-        replace_sample: bool = False,
-        alpha: float = 0.03,
-        beta: float = 0.0008,
+        contextual: bool = False,
+        text: bool = True,
+        replace_sample: bool = True,
+        alpha: float = 0.2,
+        beta: float = 0.01 / 10,
         save_freq: int = 50,
         **kwargs,
     ) -> None:
         """
         Args:
             emb_size: size of the embedding
-            answer: whether to use the local model's answer as part of the observation
             device: device to run the clip model
             contextual: whether to use contextual bandit
+            text: whether to use text as the observation
             replace_sample: whether to replace the sample
             alpha: the weight of latency
             beta: the weight of token costs. For OpenAI, the cost is $0.02/1000 tokens
+
+            Note:
+            A 1920x1080 image with 3-byte pixels is approximately 6.22 megabytes (MB).
+            This is because each pixel uses 3 bytes.
+            5G home internet commonly gives you speeds around 100~300 Mbps.
+            Thus, the transmission time is 6.22MB * 8 / 300Mbps = 0.166s
         """
-        super(OpenDomainLatencyGymEnv, self).__init__()
+        super(WaymoLatencyGymEnv, self).__init__()
 
         ### make sure the sum of p is 1
         ### Define action and observation space with discrete actions:
         n_bandits = len(bandits)
         self.action_space = spaces.Discrete(n_bandits)
         self.contextual = contextual
+        self.text = text
         self.action_list = [0 for _ in range(n_bandits)]
-
         self.device = device
-        self.answer = answer
-        if self.answer:
-            self.emb_size = emb_size * 3  # question, choices, answer
-        else:
-            self.emb_size = emb_size * 2  # question, choices
-
+        self.emb_size = emb_size * 2 if text else emb_size
         self.replace_sample = replace_sample
-        self.reward_range = (0, 1)
         self.cnt = 0
         self.cumulative_reward = 0
         self.mean_reward_dict = {}
@@ -78,61 +73,44 @@ class OpenDomainLatencyGymEnv(gym.Env):
             -np.inf, np.inf, shape=(self.emb_size,), dtype="float32"
         )
 
-        ### load subsets ###
-        subsets = pd.read_csv("synced_data/csv/mmlu/vicuna-7b-v1.5_nochoice.csv")
-        selected_indices = []
-        self.subsets = []
-        idx = 0
-        for _, row in subsets.iterrows():
-            if row["subdataset"] in subset_map.values():
-                selected_indices.append(idx)
-                self.subsets.append(row["subdataset"])
-            idx += 1
-
-        ### shuffle the arm results
-        np.random.seed(42)
-        self.num_samples = len(selected_indices)
-        self.shuffle_idx = np.random.choice(
-            np.arange(self.num_samples), self.num_samples, replace=self.replace_sample
+        ### load embeddings
+        self.q_emb = np.load(data_path + "clip_emb_question.npy")  # 10x768
+        self.q_emb = np.tile(self.q_emb, (2000, 1))  # 20000x768
+        self.token_len = np.load(data_path + "question_token_length.npy")  # 10
+        self.token_len = np.tile(self.token_len, 2000)
+        self.token_len = self.token_len.reshape(dataset_size, 1)  # 20000x1
+        self.token_len = np.repeat(self.token_len, 3, axis=1)  # 20000x3
+        self.token_len[:, 0] = 0  # no need to pay for the token cost
+        self.img_emb = np.load(data_path + "clip_emb_img.npy")  # 2000x768
+        self.img_emb = np.repeat(self.img_emb, 10, axis=0)
+        self.arm_results = np.load(data_path + "arm_results.npy")  # 20000x3
+        self.model_latency = np.load(data_path + "arm_results_time.npy")  # 20000x3
+        assert self.q_emb.shape == self.img_emb.shape, print(
+            f"q and img shape: {self.q_emb.shape} != {self.img_emb.shape}"
         )
-
-        ### remove models
-        model_idx = [i for i in bandits.keys()]
-        self.arm_results = np.load(
-            "synced_data/csv/mmlu/models_accnorm.npy"
-        )  # shape = [25256, 8]
-        self.arm_results = self.arm_results[selected_indices, :]
-        self.arm_results = self.arm_results[:, model_idx]
-
-        assert self.arm_results.shape[1] == n_bandits, print(
-            f"n_bandits should be equal to the number of {self.arm_results.shape[1]}"
+        assert self.token_len.shape == self.arm_results.shape, print(
+            f"token_len shape 0: {self.token_len.shape} should be {self.arm_results.shape}"
         )
+        self.img_mean = np.mean(self.img_emb, axis=0)
+        self.img_std = np.std(self.img_emb, axis=0)
+        self.q_mean = np.mean(self.q_emb, axis=0)
+        self.q_std = np.std(self.q_emb, axis=0)
 
-        ### load latency data
-        self.model_latency = np.zeros_like(self.arm_results)
-        idx = 0
-        for key, value in bandits.items():
-            latency = pd.read_csv(f"synced_data/csv/mmlu/{value}_answer_time.csv")
-            latency = np.array(latency["answer_time"] + latency["load_time"])
-            repeat_cnt = self.arm_results.shape[0] // len(latency) + 1
-            latency = np.tile(latency, repeat_cnt)
-            self.model_latency[:, idx] = latency[selected_indices]
-            idx += 1
-
-        ### load token costs
-        self.token_len = np.zeros_like(self.arm_results)
-        token_length = np.load("synced_data/csv/mmlu/question_token_length.npy")
-        self.token_len[:, 1:] = token_length[selected_indices, np.newaxis]
+        ### add image transmission time
+        self.model_latency[:, 1:] += 0.166 * 2
 
         ### add acc and latency
         self.reward = (
             self.arm_results
             - alpha * np.log10(self.model_latency)
-            - beta * self.token_len
+            - beta * self.token_len * 2
         )
         print(
-            f"reward = {self.arm_results[-1]} - {alpha * np.log10(self.model_latency[-1])} - {beta*self.token_len[-1]}"
+            f"reward = {self.arm_results[-1]} - {alpha*np.log10(self.model_latency[-1])} - {beta*self.token_len[-1]*2}"
         )
+        print("Model latency average: ", np.mean(self.model_latency, axis=0))
+        print("Model acc average: ", np.mean(self.arm_results, axis=0))
+        print("Model token cost average: ", np.mean(self.token_len, axis=0))
 
         ### calculate optimal reward
         opt_ = self.reward.max(axis=1)  # shape: (dataset_size, )
@@ -143,28 +121,22 @@ class OpenDomainLatencyGymEnv(gym.Env):
         print("Worst arm reward: ", self.reward.mean(axis=0).min())
         print("arms: ", self.reward.mean(axis=0))
 
-        ### load embeddings
-        self.question_np = np.load("synced_data/csv/mmlu/clip_emb_question.npy")[
-            selected_indices, :
-        ]
-        self.context_np = np.load("synced_data/csv/mmlu/clip_emb_choices.npy")[
-            selected_indices, :
-        ]
-        self.model_answer_np = (np.load("synced_data/csv/mmlu/clip_emb_answer.npy"))[
-            selected_indices, :
-        ]
+        ### shuffle the arm results
+        np.random.seed(42)
+        self.num_samples = self.arm_results.shape[0]
+        self.shuffle_idx = np.random.choice(
+            np.arange(self.num_samples), self.num_samples, replace=self.replace_sample
+        )
+
         return
 
     def step(
-        self,
-        action: int,
-        _idx: int = None,
+        self, action: int, _idx: int = None
     ) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
         Args:
             action: (int) the action that the agent took
             _idx: (int) the index of the next observation
-            _dataset: (str) the dataset to use
         Returns:
             observation: (np.ndarray) the observation of the next step
             reward: (float) the reward from the action
@@ -197,28 +169,15 @@ class OpenDomainLatencyGymEnv(gym.Env):
 
         ### calculate the next observation
         if self.contextual:
-            ### load the embeddings of a question and its choices and answer
-            question_emb = self.question_np[next_idx, :]
-            context_emb = self.context_np[next_idx, :]
-            if self.answer:
-                model_answer_emb = self.model_answer_np[next_idx, :]
-                observation = np.concatenate(
-                    (question_emb, context_emb, model_answer_emb),
-                    axis=0,
-                    dtype="float32",
-                )
+            if self.text:
+                q_emb = (self.q_emb[next_idx, :] - self.q_mean) / self.q_std
+                img_emb = (self.img_emb[next_idx, :] - self.img_mean) / self.img_std
+                observation = np.concatenate((q_emb, img_emb)).astype("float32")
             else:
-                observation = np.concatenate(
-                    (question_emb, context_emb), axis=0, dtype="float32"
-                )
+                next_idx
+                observation = self.img_emb[next_idx].astype("float32")
         else:
-            subset = self.subsets[next_idx]
-            subset_idx = 0
-            for key, value in subset_map.items():
-                if subset == value:
-                    subset_idx = int(key)
-                    break
-            observation = np.ones((self.emb_size,), dtype="float32") * subset_idx
+            observation = np.ones((self.emb_size,), dtype="float32")
 
         assert observation.shape == (self.emb_size,), f"obs shape: {observation.shape}"
 
@@ -230,7 +189,7 @@ class OpenDomainLatencyGymEnv(gym.Env):
         self.action_list[action] += 1
         self.cumulative_reward += reward
         if self.cnt % 500 == 0:
-            print(f"step: {self.cnt}, Cum Reward:", self.cumulative_reward / self.cnt)
+            print(f"step: {self.cnt}, Cum Reward", self.cumulative_reward / self.cnt)
             print("action list: ", self.action_list)
         if self.cnt % self.save_freq == 0 and self.cnt <= self.num_samples:
             self.mean_reward_dict[self.cnt] = self.cumulative_reward / self.cnt
@@ -255,7 +214,7 @@ class OpenDomainLatencyGymEnv(gym.Env):
 
         info = {}
         self.state = -1
-        observation, _, _, _, info = self.step(1, _idx=_idx)
+        observation, _, _, _, info = self.step(0, _idx=_idx)
         return observation, info
 
     def save_cum_reward(self):
@@ -266,7 +225,7 @@ class OpenDomainLatencyGymEnv(gym.Env):
         df["Step"] = self.mean_reward_dict.keys()
         df["mean_reward"] = self.mean_reward_dict.values()
         df.to_csv(
-            f"synced_data/cumulative_reward/mmlu_latency_step{self.save_freq}.csv",
+            f"synced_data/cumulative_reward/waymo_latency_step{self.save_freq}.csv",
             index=False,
         )
         return
@@ -279,7 +238,7 @@ class OpenDomainLatencyGymEnv(gym.Env):
 # test emv with main function
 if __name__ == "__main__":
     # Create the Gym environment
-    env = OpenDomainLatencyGymEnv(answer=True, contextual=False, exact_match=True)
+    env = WaymoLatencyGymEnv(contextual=True, text=False, replace_sample=False)
     random = True
 
     # Reset the environment
@@ -289,11 +248,13 @@ if __name__ == "__main__":
     total_reward = 0
 
     if random:
-        for i in range(5000):
+        for i in range(20000):
             cnt += 1
             action = env.action_space.sample()
-            action = 2
+            action = 0
             obs, reward, terminated, truncated, info = env.step(action)
+            total_reward += reward
+            mean_reward = total_reward / cnt
     else:
         ### test trained model
         import torch
@@ -314,5 +275,3 @@ if __name__ == "__main__":
             action, _ = model.predict(obs)
             obs, reward, terminated, truncated, info = env.step(action, _idx=idx)
             idx_a_list.append((idx, action))
-
-    print(env.action_list)
