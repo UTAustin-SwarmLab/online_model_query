@@ -66,7 +66,7 @@ set_axis_infos(
 set_axis_infos(
     ax_mmlu_lat,
     xlabel="Number of Data Observed",
-    ylabel="Cumulative Mean Reward\n with Latency",
+    ylabel="Cumulative Mean Reward\n with Latency and Costs",
     ylim=(0.49, 0.81),
     xticks=list(np.arange(0, 12501, 4000)),
     yticks=list(np.arange(0.5, 0.81, 0.1)),

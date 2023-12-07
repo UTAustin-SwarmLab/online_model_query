@@ -3,6 +3,7 @@ import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from sklearn.manifold import TSNE
 from utils import scale_to_01_range
 
@@ -13,8 +14,8 @@ markersize = 55
 
 
 def plot_alfred_tsne():
-    colors = ["red", "blue", "green", "black", "tan", "orange", "purple", "pink"]
-    # colors = sns.color_palette("hls", 8)
+    # colors = ["red", "blue", "green", "black", "tan", "orange", "purple", "pink"]
+    colors = sns.color_palette("muted", 7)
     markers = ["o", "v", "s", "p", "x", "D", "P", "*"]
 
     ### load dataframes
@@ -54,6 +55,7 @@ def plot_alfred_tsne():
     ty = scale_to_01_range(ty)
 
     task_types = task_df["task_type"].unique().tolist()
+    task_types.sort()
     fig = plt.figure(figsize=(15, 10))
     ax = fig.add_subplot(111)
 

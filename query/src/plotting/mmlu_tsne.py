@@ -3,6 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from sklearn.manifold import TSNE
 from utils import scale_to_01_range
 
@@ -124,8 +125,8 @@ def plot_mmlu_tsne(save=False, ax_=None):
     # NUM_COLORS = len(subset_map.values())
     # cm = plt.get_cmap("gist_rainbow")
     # colors = [cm(1.0 * i / NUM_COLORS) for i in range(NUM_COLORS)]
-    # colors = sns.color_palette("hls", 6)
-    colors = ["red", "blue", "green", "black", "orange", "purple", "pink"]
+    colors = sns.color_palette("muted", 6)
+    # colors = ["red", "blue", "green", "black", "orange", "purple", "pink"]
 
     # for every subset, we plot the points separately
     for idx, subset in enumerate(subset_map.values()):
