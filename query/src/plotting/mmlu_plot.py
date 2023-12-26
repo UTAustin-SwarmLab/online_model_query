@@ -142,7 +142,7 @@ def plot_mmlu(save=False, ax_=None):
     ax.plot(
         steps,
         np.repeat(y.mean(axis=0).max(), len(rewards_ppo)),
-        label="Overall Best Arm",
+        label="Overall Best Model",
         linewidth=lwd,
         color=colors[1],
         ls="-.",
@@ -150,7 +150,7 @@ def plot_mmlu(save=False, ax_=None):
     ax.plot(
         steps,
         np.repeat(y.mean(axis=0).min(), len(rewards_ppo)),
-        label="Overall Worst Arm",
+        label="Overall Worst Model",
         linewidth=lwd,
         color=colors[4],
         ls=":",
