@@ -5,7 +5,7 @@ from swarm_visualizer.utility.general_utils import (
     set_axis_infos,
 )
 
-df_path = "synced_data/csv/waymo/cloud-transmit-data.csv"
+df_path = "synced_data/csv/waymo/cloud-transmit-data-3.csv"
 llava_results_path = "synced_data/csv/waymo/waymo_captions_llava-v1.5-13b.csv"
 xylabelsize = 26
 legendsize = 22

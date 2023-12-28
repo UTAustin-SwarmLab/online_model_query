@@ -78,7 +78,7 @@ set_axis_infos(
 set_axis_infos(
     ax_waymo_lat,
     xlabel="Number of Data Observed",
-    ylim=(0.74, 0.96),
+    ylim=(0.64, 0.86),
     xticks=list(np.arange(0, 20001, 5000)),
     yticks=list(np.arange(0.6, 0.86, 0.1)),
     xlabel_size=xylabelsize,

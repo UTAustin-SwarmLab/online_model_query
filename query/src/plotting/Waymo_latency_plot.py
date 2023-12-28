@@ -39,7 +39,14 @@ def plot_waymo_lat(save=False, ax_=None):
     model_latency = np.load(data_path + "arm_results_time.npy")  # 20000x3
 
     ### add image transmission time
-    model_latency[:, 1:] += 0.166 * 2
+    # model_latency[:, 1:] += 0.166 * 2
+    df = pd.read_csv(data_path + "cloud-transmit-data-3.csv")
+    df.iloc[:5, :] = df.iloc[dataset_size:, :]
+    df = df.iloc[:dataset_size, :]
+    network_latency = df["download"].values + df["upload"].values
+    model_latency[:, 1] += network_latency
+    model_latency[:, 2] += network_latency
+
     ### add acc and latency
     X_complete = np.concatenate(
         (q_emb, img_emb, arm_results),

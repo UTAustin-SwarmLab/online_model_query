@@ -1,6 +1,6 @@
-### poetry run python query/src/policy/ppo_latency.py -e OpenDomain -c True -n 4
-### poetry run python query/src/policy/ppo_latency.py -e Alfred -c True -n 50
-### poetry run python query/src/policy/ppo_latency.py -e Waymo -c True -n 50
+### poetry run python query/src/policy/ppo_latency.py -e OpenDomain -c True -n 5
+### poetry run python query/src/policy/ppo_latency.py -e Alfred -c True -n 5
+### poetry run python query/src/policy/ppo_latency.py -e Waymo -c True -n 5
 import argparse
 
 import gymnasium as gym

@@ -97,7 +97,12 @@ class WaymoLatencyGymEnv(gym.Env):
         self.q_std = np.std(self.q_emb, axis=0)
 
         ### add image transmission time
-        self.model_latency[:, 1:] += 0.166 * 2
+        df = pd.read_csv(data_path + "cloud-transmit-data-3.csv")
+        df.iloc[:5, :] = df.iloc[dataset_size:, :]
+        df = df.iloc[:dataset_size, :]
+        network_latency = df["download"].values + df["upload"].values
+        self.model_latency[:, 1] += network_latency
+        self.model_latency[:, 2] += network_latency
 
         ### add acc and latency
         self.reward = (
