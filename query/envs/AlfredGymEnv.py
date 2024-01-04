@@ -37,6 +37,7 @@ class AlfredGymEnv(gym.Env):
         alpha: float = 0.05,
         beta: float = 0.005,
         save_freq: int = 5,
+        save_reward: bool = True,
         **kwargs,
     ) -> None:
         """
@@ -73,6 +74,11 @@ class AlfredGymEnv(gym.Env):
         self.floor_plan = floor_plan
         self.reward_metric = reward_metric
         self.save_freq = save_freq
+        self.save_reward = save_reward
+        self.acc_list = []
+        self.cost_list = []
+        self.alpha = alpha
+        self.beta = beta
 
         ### input is an embedding
         self.observation_space = spaces.Box(
@@ -211,6 +217,12 @@ class AlfredGymEnv(gym.Env):
         ### calculate reward
         current_idx = self.state
         reward = self.arm_results[current_idx, action]
+        self.acc_list.append(self.arm_results[current_idx, action])
+        self.cost = (
+            -self.alpha * np.log10(self.model_latency[current_idx, action])
+            - self.beta * self.token_len[current_idx, action] * 2
+        )
+        self.cost_list.append(self.cost)
 
         ### calculate done
         terminated = False
@@ -302,7 +314,11 @@ class AlfredGymEnv(gym.Env):
         return
 
     def close(self):
-        self.save_cum_reward()
+        if self.save_reward:
+            self.save_cum_reward()
+        print("Mean of acc list: ", sum(self.acc_list) / len(self.acc_list))
+        print("Mean of latency list: ", sum(self.cost_list) / len(self.cost_list))
+        print("len list: ", len(self.acc_list))
         return super().close()
 
 

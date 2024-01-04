@@ -107,7 +107,7 @@ lgd = fig.legend(
     bbox_to_anchor=(0.5, 0.99),
     fancybox=True,
     shadow=True,
-    ncol=4,
+    ncol=5,
     fontsize=legendsize,
     markerscale=2,
 )

@@ -54,3 +54,15 @@ register(
     max_episode_steps=1e5,
     entry_point="query.envs.WaymoLatencyGymEnv:WaymoLatencyGymEnv",
 )
+
+register(
+    id="RTX-v1",
+    max_episode_steps=1e5,
+    entry_point="query.envs.RTXGymEnv:RTXGymEnv",
+)
+
+register(
+    id="RTXLatency-v1",
+    max_episode_steps=1e5,
+    entry_point="query.envs.RTXLatencyGymEnv:RTXLatencyGymEnv",
+)

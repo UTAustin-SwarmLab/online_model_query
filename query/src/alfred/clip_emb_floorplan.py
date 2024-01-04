@@ -1,4 +1,3 @@
-### extract CLIP embeddings for each question, choices, and answer of vicuna-7b-v1.5
 import argparse
 import os
 import pickle

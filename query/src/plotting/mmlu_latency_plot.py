@@ -122,6 +122,11 @@ def plot_mmlu_lat(save=False, ax_=None):
     ### pandas to numpy
     rewards_ppo = ppo["mean_reward"].to_numpy()[: rewards_opt.shape[0]]
     steps = ppo["Step"].to_numpy()[: rewards_opt.shape[0]]
+    greedy = pd.read_csv(
+        f"./synced_data/cumulative_reward/OpenDomainLatency_greedy_step{batch_size}.csv"
+    )
+    reward_greedy = greedy["mean_reward"].to_numpy()[: rewards_opt.shape[0]]
+
     rcParams["figure.figsize"] = 14, 8
     lwd = 5
     cmap = plt.get_cmap("tab20")
@@ -151,6 +156,9 @@ def plot_mmlu_lat(save=False, ax_=None):
             color=colors[8],
         )
     ax.plot(steps, rewards_ppo, label="PPO (ours)", linewidth=lwd, color=colors[12])
+    ax.plot(
+        steps, reward_greedy, label="$\epsilon$-Greedy", linewidth=lwd, color=colors[18]
+    )
     ax.plot(
         steps,
         rewards_opt,

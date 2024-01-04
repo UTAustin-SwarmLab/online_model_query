@@ -33,6 +33,7 @@ class WaymoLatencyGymEnv(gym.Env):
         alpha: float = 0.2,
         beta: float = 0.01 / 10,
         save_freq: int = 50,
+        save_reward: bool = True,
         **kwargs,
     ) -> None:
         """
@@ -67,6 +68,9 @@ class WaymoLatencyGymEnv(gym.Env):
         self.cumulative_reward = 0
         self.mean_reward_dict = {}
         self.save_freq = save_freq
+        self.save_reward = save_reward
+        self.acc_list = []
+        self.cost_list = []
 
         ### input is an embedding
         self.observation_space = spaces.Box(
@@ -79,7 +83,7 @@ class WaymoLatencyGymEnv(gym.Env):
         self.token_len = np.load(data_path + "question_token_length.npy")  # 10
         self.token_len = np.tile(self.token_len, 2000)
         self.token_len = self.token_len.reshape(dataset_size, 1)  # 20000x1
-        self.token_len = np.repeat(self.token_len, 3, axis=1)  # 20000x3
+        self.token_len = np.repeat(self.token_len, n_bandits, axis=1)  # 20000x3
         self.token_len[:, 0] = 0  # no need to pay for the token cost
         self.img_emb = np.load(data_path + "clip_emb_img.npy")  # 2000x768
         self.img_emb = np.repeat(self.img_emb, 10, axis=0)
@@ -95,6 +99,8 @@ class WaymoLatencyGymEnv(gym.Env):
         self.img_std = np.std(self.img_emb, axis=0)
         self.q_mean = np.mean(self.q_emb, axis=0)
         self.q_std = np.std(self.q_emb, axis=0)
+        self.alpha = alpha
+        self.beta = beta
 
         ### add image transmission time
         df = pd.read_csv(data_path + "cloud-transmit-data-3.csv")
@@ -155,6 +161,12 @@ class WaymoLatencyGymEnv(gym.Env):
         ### calculate reward
         current_idx = self.state
         reward = self.reward[current_idx, action]
+        self.acc_list.append(self.arm_results[current_idx, action])
+        self.cost = (
+            -self.alpha * np.log10(self.model_latency[current_idx, action])
+            - self.beta * self.token_len[current_idx, action] * 2
+        )
+        self.cost_list.append(self.cost)
 
         ### calculate done
         terminated = False
@@ -236,7 +248,11 @@ class WaymoLatencyGymEnv(gym.Env):
         return
 
     def close(self):
-        self.save_cum_reward()
+        if self.save_reward:
+            self.save_cum_reward()
+        print("Mean of acc list: ", sum(self.acc_list) / len(self.acc_list))
+        print("Mean of latency list: ", sum(self.cost_list) / len(self.cost_list))
+        print("len list: ", len(self.acc_list))
         return super().close()
 
 
@@ -253,10 +269,12 @@ if __name__ == "__main__":
     total_reward = 0
 
     if random:
-        for i in range(20000):
+        for i in range(dataset_size):
             cnt += 1
-            action = env.action_space.sample()
-            action = 0
+            # action = env.action_space.sample()
+            # action = 0 # 0.8356 - 0.08
+            action = 1  # 0.76766 - 0.1579
+            action = 2  # 0.8582 - 0.13
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
             mean_reward = total_reward / cnt
@@ -280,3 +298,4 @@ if __name__ == "__main__":
             action, _ = model.predict(obs)
             obs, reward, terminated, truncated, info = env.step(action, _idx=idx)
             idx_a_list.append((idx, action))
+    env.close()

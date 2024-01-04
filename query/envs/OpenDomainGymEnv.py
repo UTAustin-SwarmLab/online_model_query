@@ -36,6 +36,7 @@ class OpenDomainGymEnv(gym.Env):
         contextual: bool = True,
         replace_sample: bool = False,
         save_freq: int = 50,
+        save_reward: bool = True,
         **kwargs,
     ) -> None:
         """
@@ -68,6 +69,7 @@ class OpenDomainGymEnv(gym.Env):
         self.cumulative_reward = 0
         self.mean_reward_dict = {}
         self.save_freq = save_freq
+        self.save_reward = save_reward
 
         ### input is an embedding
         self.observation_space = spaces.Box(
@@ -231,15 +233,17 @@ class OpenDomainGymEnv(gym.Env):
         return observation, info
 
     def close(self):
-        ### save mean reward dict as csv
-        print("Saving mean reward dict...")
-        # create an empty DataFrame
-        df = pd.DataFrame(columns=["Step", "mean_reward"])
-        df["Step"] = self.mean_reward_dict.keys()
-        df["mean_reward"] = self.mean_reward_dict.values()
-        df.to_csv(
-            f"synced_data/cumulative_reward/mmlu_step{self.save_freq}.csv", index=False
-        )
+        if self.save_reward:
+            ### save mean reward dict as csv
+            print("Saving mean reward dict...")
+            # create an empty DataFrame
+            df = pd.DataFrame(columns=["Step", "mean_reward"])
+            df["Step"] = self.mean_reward_dict.keys()
+            df["mean_reward"] = self.mean_reward_dict.values()
+            df.to_csv(
+                f"synced_data/cumulative_reward/mmlu_step{self.save_freq}.csv",
+                index=False,
+            )
         return super().close()
 
 

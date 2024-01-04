@@ -70,7 +70,7 @@ elif "QA" in env_name:
     )
     log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenBookQA_{answer}/"
 elif "Domain" in env_name:
-    total_timesteps = 10000
+    total_timesteps = 12000
     answer = False
     # answer = True
     print(env_name + "-v1")
@@ -91,7 +91,7 @@ elif "Domain" in env_name:
     log_path = f"./tensorboard_log/PPO_step{n_steps}_OpenDomain{tag}/"
 elif "Alfred" in env_name:
     print(env_name + "-v1")
-    reward_metric = "SR"  # "PLWGC"
+    reward_metric = "SR"
     # reward_metric = "GC+PLW"
     total_timesteps = 13000
     env = gym.make(

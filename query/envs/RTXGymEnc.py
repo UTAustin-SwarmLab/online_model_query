@@ -9,16 +9,15 @@ from gymnasium import spaces
 import query.envs  # noqa: F401
 
 bandits = {
-    0: "llava-v1.5-7b",
-    1: "llava-v1.5-13b",
-    2: "llava-v1.5-13b-lora",
+    0: "small",
+    1: "base",
 }
 
-data_path = "synced_data/csv/waymo/"
-dataset_size = 20000
+data_path = "synced_data/csv/rtx/"
+dataset_size = 15000
 
 
-class WaymoGymEnv(gym.Env):
+class RTXGymEnv(gym.Env):
     """Custom Environment that follows gym interface"""
 
     metadata = {"render_modes": ["human"]}
@@ -42,9 +41,8 @@ class WaymoGymEnv(gym.Env):
             text: whether to use text as the observation
             replace_sample: whether to replace the sample
         """
-        super(WaymoGymEnv, self).__init__()
+        super(RTXGymEnv, self).__init__()
 
-        ### make sure the sum of p is 1
         ### Define action and observation space with discrete actions:
         n_bandits = len(bandits)
         self.action_space = spaces.Discrete(n_bandits)
@@ -52,7 +50,7 @@ class WaymoGymEnv(gym.Env):
         self.text = text
         self.action_list = [0 for _ in range(n_bandits)]
         self.device = device
-        self.emb_size = emb_size * 2 if text else emb_size
+        self.emb_size = emb_size * 3 if text else emb_size * 2  # 2 for img, 1 for text
         self.replace_sample = replace_sample
         self.cnt = 0
         self.cumulative_reward = 0
@@ -66,9 +64,40 @@ class WaymoGymEnv(gym.Env):
         )
 
         ### load embeddings
-        self.q_emb = np.load(data_path + "clip_emb_question.npy")  # 10x768
-        self.img_emb = np.load(data_path + "clip_emb_img.npy")  # 2000x768
-        self.arm_results = np.load(data_path + "arm_results.npy")
+        bridge = np.load(data_path + "bridge_instruct_emb.npy")
+        kuka = np.load(data_path + "kuka_instruct_emb.npy")
+        fractal = np.load(data_path + "fractal20220817_data_instruct_emb.npy")
+        self.q_emb = np.concatenate((bridge, kuka, fractal), axis=0)  # 15000 x 768
+        assert self.q_emb.shape[0] == dataset_size, print(
+            f"q_emb shape: {self.q_emb.shape}"
+        )
+
+        bridge = np.load(data_path + "bridge_img_emb.npy")
+        kuka = np.load(data_path + "kuka_img_emb.npy")
+        fractal = np.load(data_path + "fractal20220817_data_img_emb.npy")
+        self.img_emb = np.concatenate((bridge, kuka, fractal), axis=0)  # 15000 x 1536
+        assert self.q_emb.shape[0] == self.img_emb.shape[0], print(
+            f"q_emb shape: {self.q_emb.shape}, img_emb shape: {self.img_emb.shape}"
+        )
+
+        small_bridge = np.load("synced_data/rtx/bridge_small_action_errors.npy")
+        small_kuka = np.load("synced_data/rtx/kuka_small_action_errors.npy")
+        small_fractal = np.load(
+            "synced_data/rtx/fractal20220817_data_small_action_errors.npy"
+        )
+        base_bridge = np.load("synced_data/rtx/bridge_base_action_errors.npy")
+        base_kuka = np.load("synced_data/rtx/kuka_base_action_errors.npy")
+        base_fractal = np.load(
+            "synced_data/rtx/fractal20220817_data_base_action_errors.npy"
+        )
+        base = np.concatenate((base_bridge, base_kuka, base_fractal), axis=0)
+        small = np.concatenate((small_bridge, small_kuka, small_fractal), axis=0)
+        self.arm_results = np.stack((small, base), axis=1)  # 1500 x 2
+        # make it negative (cost to reward) then scale it
+        self.arm_results *= -20
+        assert self.arm_results.shape == (dataset_size, n_bandits), print(
+            f"arm_results shape: {self.arm_results.shape}"
+        )
 
         ### calculate optimal reward
         opt_ = self.arm_results.max(axis=1)  # shape: (dataset_size, )
@@ -187,7 +216,7 @@ class WaymoGymEnv(gym.Env):
             df["Step"] = self.mean_reward_dict.keys()
             df["mean_reward"] = self.mean_reward_dict.values()
             df.to_csv(
-                f"synced_data/cumulative_reward/waymo_step{self.save_freq}.csv",
+                f"synced_data/cumulative_reward/rtx_step{self.save_freq}.csv",
                 index=False,
             )
         return
@@ -201,7 +230,7 @@ class WaymoGymEnv(gym.Env):
 # test emv with main function
 if __name__ == "__main__":
     # Create the Gym environment
-    env = WaymoGymEnv(contextual=True, text=False, replace_sample=False)
+    env = RTXGymEnv(contextual=True, text=False, replace_sample=False)
     random = True
 
     # Reset the environment
@@ -211,7 +240,7 @@ if __name__ == "__main__":
     total_reward = 0
 
     if random:
-        for i in range(20000):
+        for i in range(dataset_size):
             cnt += 1
             action = env.action_space.sample()
             # action = 2
