@@ -1,6 +1,7 @@
 ### poetry run python query/src/policy/ppo_latency.py -e OpenDomain -c True -n 5
 ### poetry run python query/src/policy/ppo_latency.py -e Alfred -c True -n 5
 ### poetry run python query/src/policy/ppo_latency.py -e Waymo -c True -n 5
+### poetry run python query/src/policy/ppo_latency.py -e RTX -c True -n 5
 import argparse
 
 import gymnasium as gym
@@ -73,6 +74,17 @@ elif "Waymo" in env_name:
         save_freq=n_steps,
     )
     log_path = f"./tensorboard_log/PPO_latency_step{n_steps}_Waymo/"
+elif "RTX" in env_name:
+    total_timesteps = 15000
+    env = gym.make(
+        "RTXLatency-v1",
+        max_episode_steps=max_episode_steps,
+        device=device,
+        contextual=contextual,
+        text=True,
+        replace=False,
+        save_freq=n_steps,
+    )
 else:
     raise ValueError("env_name not found: " + env_name)
 

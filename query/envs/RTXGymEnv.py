@@ -203,8 +203,14 @@ class RTXGymEnv(gym.Env):
         super().reset(seed=seed, **kwargs)
 
         info = {}
-        self.state = -1
-        observation, _, _, _, info = self.step(0, _idx=_idx)
+        self.state = 202
+        # print(self.arm_results[self.state, 1])
+        # ## print rows with values between
+        # print(self.arm_results[(self.arm_results > -0.9) & (self.arm_results < -0.7)])
+        # ## print index of rows with values between -1.5 and -0.5
+        # print(np.where((self.arm_results > -0.9) & (self.arm_results < -0.7)))
+        # input()
+        observation, r, _, _, info = self.step(1, _idx=_idx)
         return observation, info
 
     def save_cum_reward(self):

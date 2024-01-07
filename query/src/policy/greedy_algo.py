@@ -94,6 +94,7 @@ if __name__ == "__main__":
     ### poetry run python query/src/policy/greedy_algo.py -e OpenDomain -c True -n 5
     ### poetry run python query/src/policy/greedy_algo.py -e Alfred -c True -n 5
     ### poetry run python query/src/policy/greedy_algo.py -e Waymo -c True -n 5
+    ### poetry run python query/src/policy/greedy_algo.py -e RTX -c True -n 5
     parser = argparse.ArgumentParser(description="Create Configuration")
     parser.add_argument("-e", "--env", type=str, help="environment name", default="")
     parser.add_argument(
@@ -181,6 +182,18 @@ if __name__ == "__main__":
         env_name = "Alfred_" + reward_metric
     elif "Waymo" in env_name:
         total_timesteps = 20000
+        env = gym.make(
+            env_name + "-v1",
+            max_episode_steps=max_episode_steps,
+            device=device,
+            contextual=contextual,
+            text=True,
+            replace=False,
+            save_freq=n_steps,
+            save_reward=False,
+        )
+    elif "RTX" in env_name:
+        total_timesteps = 15000
         env = gym.make(
             env_name + "-v1",
             max_episode_steps=max_episode_steps,

@@ -1,12 +1,9 @@
-### tensorboard --logdir='./tensorboard_log/PPO_ImageNet1k' --port=6006
-### tensorboard --logdir='./tensorboard_log/PPO_step100_OpenBookQA_True' --port=6006
-### tensorboard --logdir='./tensorboard_log/PPO_step50_Alfred_PLWGC' --port=6006
-### tensorboard --logdir='./tensorboard_log/PPO_step5_OpenDomain_contextual_answer' --port=6006
 ### poetry run python query/src/policy/ppo.py -e ImageNet1k_CIFAR100 -d 0 -c True -i True -n 100
 ### poetry run python query/src/policy/ppo.py -d 1 -e OpenBookQA -c True -n 100
 ### poetry run python query/src/policy/ppo.py -e OpenDomain -c True -d 3 -n 4
 ### poetry run python query/src/policy/ppo.py -e Alfred -c True -d 3 -n 5
 ### poetry run python query/src/policy/ppo.py -e Waymo -c True -d 3 -n 5
+### poetry run python query/src/policy/ppo.py -e RTX -c True -d 3 -n 5
 import argparse
 
 import gymnasium as gym
@@ -118,6 +115,17 @@ elif "Waymo" in env_name:
         save_freq=n_steps,
     )
     log_path = f"./tensorboard_log/PPO_step{n_steps}_Waymo/"
+elif "RTX" in env_name:
+    total_timesteps = 15000
+    env = gym.make(
+        env_name + "-v1",
+        max_episode_steps=max_episode_steps,
+        device=device,
+        contextual=contextual,
+        text=True,
+        replace=False,
+        save_freq=n_steps,
+    )
 else:
     raise ValueError("env_name not found: " + env_name)
 

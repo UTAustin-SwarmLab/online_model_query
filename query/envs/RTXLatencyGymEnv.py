@@ -110,7 +110,10 @@ class RTXLatencyGymEnv(gym.Env):
         assert self.arm_results.shape == (dataset_size, n_bandits), print(
             f"arm_results shape: {self.arm_results.shape}"
         )
-
+        self.img_mean = np.mean(self.img_emb, axis=0)
+        self.img_std = np.std(self.img_emb, axis=0)
+        self.q_mean = np.mean(self.q_emb, axis=0)
+        self.q_std = np.std(self.q_emb, axis=0)
         self.alpha = alpha
         self.beta = beta
 
@@ -260,8 +263,14 @@ class RTXLatencyGymEnv(gym.Env):
         super().reset(seed=seed, **kwargs)
 
         info = {}
-        self.state = -1
-        observation, _, _, _, info = self.step(0, _idx=_idx)
+        self.state = 13353  # 13807
+        ### print rows with values between
+        # wh = np.where((self.reward > -0.9) & (self.reward < -0.8))
+        # print(self.reward[wh])
+        # print(wh)
+        # print(self.reward[self.state, 0])
+        # input()
+        observation, _, _, _, info = self.step(1, _idx=_idx)
         return observation, info
 
     def save_cum_reward(self):
