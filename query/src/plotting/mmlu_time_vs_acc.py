@@ -78,9 +78,6 @@ ax.annotate(
     fontsize=xylabelsize,
 )
 
-# x = np.arange(0.036, 0.15, 0.002)
-# y = x + 0.631066
-# plt.plot(x, y, "o")
 
 set_axis_infos(
     ax=ax,
@@ -93,4 +90,4 @@ set_axis_infos(
     yticks=[0.6, 0.65, 0.7, 0.75],
 )
 
-plt.savefig("plot/mmlu/mmlu_time_vs_acc.pdf", bbox_inches="tight")
+plt.savefig("plot/mmlu/mmlu_time_vs_acc.png", bbox_inches="tight")

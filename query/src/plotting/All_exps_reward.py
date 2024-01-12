@@ -72,7 +72,7 @@ set_axis_infos(
 )
 set_axis_infos(
     ax_mmlu_lat,
-    xlabel="Number of Data Observed",
+    xlabel="Amount of Data Observed",
     ylabel="Cumulative Mean Reward\n with Latency and Costs",
     ylim=(0.49, 0.81),
     xticks=list(np.arange(0, 12501, 4000)),
@@ -84,7 +84,7 @@ set_axis_infos(
 )
 set_axis_infos(
     ax_waymo_lat,
-    xlabel="Number of Data Observed",
+    xlabel="Amount of Data Observed",
     ylim=(0.64, 0.86),
     xticks=list(np.arange(0, 20001, 5000)),
     yticks=list(np.arange(0.6, 0.86, 0.1)),
@@ -95,7 +95,7 @@ set_axis_infos(
 )
 set_axis_infos(
     ax_alfred_lat,
-    xlabel="Number of Data Observed",
+    xlabel="Amount of Data Observed",
     ylim=(0.0, 0.22),
     xticks=list(np.arange(0, 13000, 4000)),
     yticks=list(np.arange(0.0, 0.21, 0.1)),
@@ -106,7 +106,7 @@ set_axis_infos(
 )
 set_axis_infos(
     ax_rtx_sr,
-    title_str=r"$\bf{RTX}$",
+    title_str=r"$\bf{Open~X-Embodiment}$",
     # ylabel="Cumulative Negative\n Mean Action Error",
     ylim=(-1.42, -1.13),
     xticks=list(np.arange(0, 15001, 5000)),
@@ -118,7 +118,7 @@ set_axis_infos(
 )
 set_axis_infos(
     ax_rtx_lat,
-    xlabel="Number of Data Observed",
+    xlabel="Amount of Data Observed",
     # ylabel="Cumulative Mean Action Error\n with Latency and Costs",
     ylim=(-1.51, -1.12),
     xticks=list(np.arange(0, 15001, 5000)),
