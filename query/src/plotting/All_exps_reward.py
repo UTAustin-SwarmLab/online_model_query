@@ -140,7 +140,7 @@ lgd = fig.legend(
     shadow=True,
     ncol=5,
     fontsize=legendsize,
-    markerscale=2,
+    markerscale=10,
 )
 
 fig.savefig("plot/results.pdf", bbox_extra_artists=(lgd,), bbox_inches="tight")

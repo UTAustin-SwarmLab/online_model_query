@@ -172,7 +172,7 @@ def plot_mmlu_lat(save=False, ax_=None):
         np.repeat(y.mean(axis=0).max(), len(rewards_ppo)),
         label="Overall Best Arm (no context)",
         linewidth=lwd,
-        color=colors[1],
+        color="blue",
         ls="-.",
     )
     ax.plot(
