@@ -158,8 +158,8 @@ def plot_mmlu_tsne(save=False, ax_=None):
             fontsize=legendsize,
             markerscale=2.5,
         )
-        ax.set_xlabel("Normalized Projected Dimension 1", fontsize=xyticksize)
-        ax.set_ylabel("Normalized Projected Dimension 2", fontsize=xyticksize)
+        ax.set_xlabel("Normalized projected dimension 1", fontsize=xyticksize)
+        ax.set_ylabel("Normalized projected dimension 2", fontsize=xyticksize)
         plt.xticks(fontsize=xyticksize)
         plt.yticks(fontsize=xyticksize)
         plt.savefig(

@@ -45,7 +45,7 @@ ax_rtx_lat.grid(True)
 
 set_axis_infos(
     ax_mmlu_sr,
-    ylabel="Cumulative Mean\nReward",
+    ylabel="Cumulative mean\nreward",
     title_str=r"$\bf{MMLU}$",
     ylim=(0.59, 0.91),
     xticks=list(np.arange(0, 12501, 4000)),
@@ -79,8 +79,8 @@ set_axis_infos(
 )
 set_axis_infos(
     ax_mmlu_lat,
-    xlabel="Amount of Data Observed",
-    ylabel="Cumulative Mean Reward\n with Latency and Costs",
+    xlabel="Amount of data observed",
+    ylabel="Cumulative mean reward\n with latency and costs",
     ylim=(0.49, 0.81),
     xticks=list(np.arange(0, 12501, 4000)),
     yticks=list(np.arange(0.5, 0.81, 0.1)),
@@ -91,7 +91,7 @@ set_axis_infos(
 )
 set_axis_infos(
     ax_waymo_lat,
-    xlabel="Amount of Data Observed",
+    xlabel="Amount of data observed",
     ylim=(0.64, 0.86),
     xticks=list(np.arange(0, 20001, 5000)),
     yticks=list(np.arange(0.6, 0.86, 0.1)),
@@ -102,7 +102,7 @@ set_axis_infos(
 )
 set_axis_infos(
     ax_alfred_lat,
-    xlabel="Amount of Data Observed",
+    xlabel="Amount of data observed",
     ylim=(0.0, 0.22),
     xticks=list(np.arange(0, 13000, 4000)),
     yticks=list(np.arange(0.0, 0.21, 0.1)),
@@ -125,7 +125,7 @@ set_axis_infos(
 )
 set_axis_infos(
     ax_rtx_lat,
-    xlabel="Amount of Data Observed",
+    xlabel="Amount of data observed",
     # ylabel="Cumulative Mean Action Error\n with Latency and Costs",
     ylim=(-1.51, -1.12),
     xticks=list(np.arange(0, 15001, 5000)),
@@ -138,6 +138,7 @@ set_axis_infos(
 
 lines_labels = [ax_mmlu_sr.get_legend_handles_labels()]
 lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+labels = [label.capitalize() if label != "PPO (ours)" else label for label in labels]
 lgd = fig.legend(
     lines,
     labels,

@@ -101,7 +101,7 @@ ax.set_xticklabels(models_labels)
 plt.subplots_adjust(hspace=0.12)
 set_axis_infos(
     ax,
-    ylabel="Mean Rewards of Models\nwith Latency and Costs",
+    ylabel="Mean rewards of models\nwith latency and costs",
     xlabel_size=xylabelsize,
     ylabel_size=xylabelsize,
     xlabel="Models",

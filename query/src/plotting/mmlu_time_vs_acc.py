@@ -16,9 +16,8 @@ names = {
     4: "LLaMA-2-70B",
     2: "Falcon-180B",
 }
-xylabelsize = 30
-legendsize = 22
-ticksize = 24
+xylabelsize = 32
+ticksize = 28
 markersize = 300
 
 sns.set(style="ticks")
@@ -48,7 +47,7 @@ plt.scatter(0.1728, 0.7706, label=names[4], color="black", s=markersize)
 ax.annotate(
     names[4],
     xy=(0.1728, 0.7706),
-    xytext=(0.1728 - 0.042, 0.7706 - 0.002),
+    xytext=(0.1728 - 0.045, 0.7706 - 0.002),
     color="black",
     fontsize=xylabelsize,
 )
@@ -56,7 +55,7 @@ plt.scatter(0.2010, 0.7600, label=names[2], color=colors[2], s=markersize)
 ax.annotate(
     names[2],
     xy=(0.2010, 0.7600),
-    xytext=(0.2010 - 0.03, 0.7600 - 0.02),
+    xytext=(0.2010 - 0.032, 0.7600 - 0.02),
     color=colors[2],
     fontsize=xylabelsize,
 )
@@ -64,7 +63,7 @@ plt.scatter(0.1655, 0.7553, color=colors[3], label="$\epsilon$-Greedy", s=marker
 ax.annotate(
     "$\epsilon$-Greedy",
     xy=(0.1655, 0.7553),
-    xytext=(0.1655 - 0.03, 0.7553),
+    xytext=(0.1655 - 0.034, 0.7553 - 0.01),
     color=colors[3],
     fontsize=xylabelsize,
 )
@@ -80,7 +79,7 @@ ax.annotate(
 
 set_axis_infos(
     ax=ax,
-    xlabel="Weighted Sum of Latency and Costs",  # (lower is better)",
+    xlabel="Weighted sum of latency and costs",  # (lower is better)",
     ylabel="Accuracy",
     xlabel_size=xylabelsize,
     ylabel_size=xylabelsize,

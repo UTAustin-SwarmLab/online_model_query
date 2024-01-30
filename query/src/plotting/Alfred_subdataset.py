@@ -45,7 +45,7 @@ ax.get_legend().remove()
 plt.subplots_adjust(hspace=0.12)
 set_axis_infos(
     ax,
-    ylabel="Accuracy of Models",
+    ylabel="Accuracy of models",
     xlabel_size=xylabelsize,
     ylabel_size=xylabelsize,
     xlabel="Models",

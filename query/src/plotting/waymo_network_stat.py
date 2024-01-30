@@ -33,31 +33,35 @@ print(df.shape)
 sns.histplot(data=df, x="upload", ax=ax_list["upload"], bins=bins)
 set_axis_infos(
     ax_list["upload"],
-    xlabel="Upload Time (seconds)",
+    xlabel="Upload time (seconds)",
     xlabel_size=xylabelsize,
     ylabel_size=xylabelsize,
     ticks_size=ticksize,
+    grid=True,
 )
 sns.histplot(data=df, x="inference time", ax=ax_list["run time"], bins=bins)
 set_axis_infos(
     ax_list["run time"],
-    xlabel="Model Run Time (seconds)",
+    xlabel="Model run time (seconds)",
     xlabel_size=xylabelsize,
     ylabel_size=xylabelsize,
     ticks_size=ticksize,
+    grid=True,
 )
 sns.histplot(data=df, x="download", ax=ax_list["download"], bins=bins)
 set_axis_infos(
     ax_list["download"],
-    xlabel="Download Time (seconds)",
+    xlabel="Download time (seconds)",
     xlabel_size=xylabelsize,
     ylabel_size=xylabelsize,
     ticks_size=ticksize,
+    grid=True,
 )
 sns.histplot(data=df, x="total", ax=ax_list["total"], bins=bins)
+plt.grid()
 set_axis_infos(
     ax_list["total"],
-    xlabel="Total Time (seconds)",
+    xlabel="Total time (seconds)",
     xlabel_size=xylabelsize,
     ylabel_size=xylabelsize,
     ticks_size=ticksize,
