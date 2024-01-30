@@ -108,8 +108,11 @@ def plot_mmlu(save=False, ax_=None):
 
     rcParams["figure.figsize"] = 14, 8
     lwd = 5
-    cmap = plt.get_cmap("tab20")
-    colors = plt.cm.tab20(np.linspace(0, 1, 20))
+    # cmap = plt.get_cmap("tab20")
+    # colors = plt.cm.tab20(np.linspace(0, 1, 20))
+    import seaborn as sns
+
+    colors = sns.color_palette("tab10")
     ax = plt.subplot(111) if ax_ is None else ax_
 
     if contextual_bandits:
@@ -125,26 +128,26 @@ def plot_mmlu(save=False, ax_=None):
             get_mean_reward(rewards_egr, batch_size),
             label="$\epsilon$-Greedy",
             linewidth=lwd,
-            color=colors[6],
+            color=colors[0],
         )
         ax.plot(
             steps,
             get_mean_reward(rewards_lucb, batch_size),
             label=f"Logistic UCB (C.I.={percentile}%)",
             linewidth=lwd,
-            color=colors[8],
+            color=colors[0],
         )
 
-    ax.plot(steps, rewards_ppo, label="PPO (ours)", linewidth=lwd, color=colors[12])
+    ax.plot(steps, rewards_ppo, label="PPO (ours)", linewidth=lwd, color=colors[0])
     ax.plot(
-        steps, reward_greedy, label="$\epsilon$-Greedy", linewidth=lwd, color=colors[18]
+        steps, reward_greedy, label="$\epsilon$-Greedy", linewidth=lwd, color=colors[1]
     )
     ax.plot(
         steps,
         rewards_opt,
         label="Optimal Policy",
         linewidth=lwd,
-        color=colors[2],
+        color=colors[3],
         ls="dashed",
     )
     ax.plot(
@@ -152,7 +155,7 @@ def plot_mmlu(save=False, ax_=None):
         np.repeat(y.mean(axis=0).max(), len(rewards_ppo)),
         label="Overall Best Model",
         linewidth=lwd,
-        color="blue",
+        color=colors[2],
         ls="-.",
     )
     ax.plot(

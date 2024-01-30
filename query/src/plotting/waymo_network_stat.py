@@ -10,9 +10,8 @@ llava_results_path = "synced_data/csv/waymo/waymo_captions_llava-v1.5-13b.csv"
 xylabelsize = 26
 legendsize = 22
 ticksize = 20
-bins = 80
+bins = 60
 
-sns.set()
 colors = sns.color_palette("muted", 4)
 
 fig, ax_list = plt.subplot_mosaic(
@@ -30,8 +29,6 @@ df["total"] = df["upload"] + df["download"] + df["inference time"]
 df = df.iloc[5:, :]
 print(df.head())
 print(df.shape)
-### show min and max of each column
-# print(df.describe())
 
 sns.histplot(data=df, x="upload", ax=ax_list["upload"], bins=bins)
 set_axis_infos(

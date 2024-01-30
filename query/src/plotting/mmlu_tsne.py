@@ -7,11 +7,9 @@ import seaborn as sns
 from sklearn.manifold import TSNE
 from utils import scale_to_01_range
 
-# sns.set()
-titlesize = 24
-xyticksize = 20
-legendsize = 24
-markersize = 55
+xyticksize = 32
+legendsize = 28
+markersize = 70
 subset_map = {
     # "0": "arc:challenge",
     # "1": "hellaswag",
@@ -30,20 +28,20 @@ subset_map = {
     # "14": "hendrycksTest-conceptual_physics",
     # "15": "hendrycksTest-econometrics",
     # "16": "hendrycksTest-electrical_engineering",
-    "17": "hendrycksTest-elementary_mathematics",
+    # "17": "hendrycksTest-elementary_mathematics",
     # "18": "hendrycksTest-formal_logic",
     # "19": "hendrycksTest-global_facts",
-    # "20": "hendrycksTest-high_school_biology",
-    # "21": "hendrycksTest-high_school_chemistry",
-    # "22": "hendrycksTest-high_school_computer_science",
+    "25": "hendrycksTest-high_school_government_and_politics",
+    "22": "hendrycksTest-high_school_computer_science",
+    "26": "hendrycksTest-high_school_macroeconomics",
+    "21": "hendrycksTest-high_school_chemistry",
+    "20": "hendrycksTest-high_school_biology",
     # "23": "hendrycksTest-high_school_european_history",
     # "24": "hendrycksTest-high_school_geography",
-    # "25": "hendrycksTest-high_school_government_and_politics",
-    "26": "hendrycksTest-high_school_macroeconomics",
     # "27": "hendrycksTest-high_school_mathematics",
     # "28": "hendrycksTest-high_school_microeconomics",
     # "29": "hendrycksTest-high_school_physics",
-    "30": "hendrycksTest-high_school_psychology",
+    # "30": "hendrycksTest-high_school_psychology",
     # "31": "hendrycksTest-high_school_statistics",
     # "32": "hendrycksTest-high_school_us_history",
     # "33": "hendrycksTest-high_school_world_history",
@@ -58,14 +56,14 @@ subset_map = {
     # "42": "hendrycksTest-medical_genetics",
     # "43": "hendrycksTest-miscellaneous",
     # "44": "hendrycksTest-moral_disputes",
-    "45": "hendrycksTest-moral_scenarios",
+    # "45": "hendrycksTest-moral_scenarios",
     # "46": "hendrycksTest-nutrition",
     # "47": "hendrycksTest-philosophy",
     # "48": "hendrycksTest-prehistory",
     # "49": "hendrycksTest-professional_accounting",
     "50": "hendrycksTest-professional_law",
     # "51": "hendrycksTest-professional_medicine",
-    "52": "hendrycksTest-professional_psychology",
+    # "52": "hendrycksTest-professional_psychology",
     # "53": "hendrycksTest-public_relations",
     # "54": "hendrycksTest-security_studies",
     # "55": "hendrycksTest-sociology",
@@ -120,13 +118,9 @@ def plot_mmlu_tsne(save=False, ax_=None):
 
     ### plot the result
     # initialize a matplotlib plot
-    fig = plt.figure(figsize=(14, 10))
+    fig = plt.figure(figsize=(17, 10))
     ax = fig.add_subplot(111)
-    # NUM_COLORS = len(subset_map.values())
-    # cm = plt.get_cmap("gist_rainbow")
-    # colors = [cm(1.0 * i / NUM_COLORS) for i in range(NUM_COLORS)]
-    colors = sns.color_palette("muted", 6)
-    # colors = ["red", "blue", "green", "black", "orange", "purple", "pink"]
+    colors = sns.color_palette("tab10", 10)
 
     # for every subset, we plot the points separately
     for idx, subset in enumerate(subset_map.values()):
@@ -138,7 +132,7 @@ def plot_mmlu_tsne(save=False, ax_=None):
 
         # convert the class color to matplotlib format
         color = colors[idx]
-        label_text = subset.replace("hendrycksTest-", "")
+        label_text = subset.replace("hendrycksTest-", "").replace("_", " ").capitalize()
         marker = "o"
 
         # add a scatter plot with the corresponding color and label
@@ -157,17 +151,17 @@ def plot_mmlu_tsne(save=False, ax_=None):
             lines,
             labels,
             loc="upper center",
-            bbox_to_anchor=(0.5, 1.25),
+            bbox_to_anchor=(0.46, 1.29),
             fancybox=True,
             shadow=True,
             ncol=2,
             fontsize=legendsize,
-            markerscale=1.5,
+            markerscale=2.5,
         )
-        # ax.set_title("T-SNE of MMLU embeddings", fontsize=titlesize)
+        ax.set_xlabel("Normalized Projected Dimension 1", fontsize=xyticksize)
+        ax.set_ylabel("Normalized Projected Dimension 2", fontsize=xyticksize)
         plt.xticks(fontsize=xyticksize)
         plt.yticks(fontsize=xyticksize)
-
         plt.savefig(
             "./plot/mmlu/mmlu_tsne.png", bbox_extra_artists=(lgd,), bbox_inches="tight"
         )

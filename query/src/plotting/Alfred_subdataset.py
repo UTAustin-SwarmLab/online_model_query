@@ -6,37 +6,40 @@ from swarm_visualizer.barplot import (
 )
 from swarm_visualizer.utility.general_utils import (
     set_axis_infos,
-    set_plot_properties,
 )
 
-sns.set()
-
-xylabelsize = 28
-legendsize = 20
-ticksize = 24
+colors = sns.color_palette("tab10", 7)
+xylabelsize = 32
+legendsize = 28
+ticksize = 32
 bandits = {
     0: "FILM",
     1: "HiTUT",
     2: "HLSM",
 }
-colors = sns.color_palette("muted", 7)
 # ["red", "blue", "green", "black", "tan", "orange", "purple"]
 df = pd.read_csv("synced_data/csv/alfred_data/alfred_models_results.csv")
 df.sort_values(by=["task_type"], inplace=True)
 
-fig, ax = plt.subplots(figsize=(14, 10))
-set_plot_properties()
-# plot_sns_grouped_barplot(
-#     df=df,
-#     x_var="model",
-#     y_var="SR",
-#     hue="task_type",
-#     # title_str=None,
-#     ax=ax,
-#     pal=colors,
-#     # y_label="Accunracy of Models",
-# )
-sns.barplot(ax=ax, x="model", y="SR", palette=colors, hue="task_type", data=df)
+fig, ax = plt.subplots(figsize=(18, 8))
+plt.grid()
+sns.barplot(
+    ax=ax,
+    x="model",
+    y="SR",
+    palette=colors,
+    hue="task_type",
+    data=df,
+    hue_order=[
+        "pick_clean_then_place_in_recep",
+        "look_at_obj_in_light",
+        "pick_and_place_simple",
+        "pick_heat_then_place_in_recep",
+        "pick_cool_then_place_in_recep",
+        "pick_two_obj_and_place",
+        "pick_and_place_with_movable_recep",
+    ],
+)
 ax.get_legend().remove()
 
 plt.subplots_adjust(hspace=0.12)
@@ -51,11 +54,12 @@ set_axis_infos(
 
 lines_labels = [ax.get_legend_handles_labels()]
 lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+labels = [label.replace("_", " ").capitalize() for label in labels]
 lgd = fig.legend(
     lines,
     labels,
     loc="upper center",
-    bbox_to_anchor=(0.5, 1.08),
+    bbox_to_anchor=(0.47, 1.22),
     fancybox=True,
     shadow=False,  # True,
     ncol=2,

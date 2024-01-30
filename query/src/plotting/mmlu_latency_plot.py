@@ -129,8 +129,11 @@ def plot_mmlu_lat(save=False, ax_=None):
 
     rcParams["figure.figsize"] = 14, 8
     lwd = 5
-    cmap = plt.get_cmap("tab20")
-    colors = plt.cm.tab20(np.linspace(0, 1, 20))
+    # cmap = plt.get_cmap("tab20")
+    # colors = plt.cm.tab20(np.linspace(0, 1, 20))
+    import seaborn as sns
+
+    colors = sns.color_palette("tab10")
     ax = plt.subplot(111) if ax_ is None else ax_
 
     if contextual_bandits:
@@ -146,39 +149,40 @@ def plot_mmlu_lat(save=False, ax_=None):
             get_mean_reward(rewards_egr, batch_size),
             label="$\epsilon$-Greedy",
             linewidth=lwd,
-            color=colors[6],
-        )  ### (p0=20%, decay=0.9999) , marker='o', linestyle=':'
+            color=colors[0],
+        )
         ax.plot(
             steps,
             get_mean_reward(rewards_lucb, batch_size),
             label=f"Logistic UCB (C.I.={percentile}%)",
             linewidth=lwd,
-            color=colors[8],
+            color=colors[0],
         )
-    ax.plot(steps, rewards_ppo, label="PPO (ours)", linewidth=lwd, color=colors[12])
+
+    ax.plot(steps, rewards_ppo, label="PPO (ours)", linewidth=lwd, color=colors[0])
     ax.plot(
-        steps, reward_greedy, label="$\epsilon$-Greedy", linewidth=lwd, color=colors[18]
+        steps, reward_greedy, label="$\epsilon$-Greedy", linewidth=lwd, color=colors[1]
     )
     ax.plot(
         steps,
         rewards_opt,
         label="Optimal Policy",
         linewidth=lwd,
-        color=colors[2],
+        color=colors[3],
         ls="dashed",
     )
     ax.plot(
         steps,
         np.repeat(y.mean(axis=0).max(), len(rewards_ppo)),
-        label="Overall Best Arm (no context)",
+        label="Overall Best Model",
         linewidth=lwd,
-        color="blue",
+        color=colors[2],
         ls="-.",
     )
     ax.plot(
         steps,
         np.repeat(y.mean(axis=0).min(), len(rewards_ppo)),
-        label="Overall Worst Arm (no context)",
+        label="Overall Worst Model",
         linewidth=lwd,
         color=colors[4],
         ls=":",
@@ -202,8 +206,8 @@ def plot_mmlu_lat(save=False, ax_=None):
         ax.set_xlabel("Steps", size=25)
         ax.set_ylabel("Cumulative Mean Success Rate", size=25)
         ax.set_title("ALFRED", size=30)
-        ax.set_ylim(0.5, 0.8)
-        ax.set_yticks(np.arange(0.5, 0.81, 0.05))
+        ax.set_ylim(0.6, 0.9)
+        ax.set_yticks(np.arange(0.6, 0.91, 0.05))
         plt.savefig(
             f"./plot/Alfred/{dataset}_ds{dataset_size}_bs{batch_size}_per{percentile}.png",
             bbox_inches="tight",

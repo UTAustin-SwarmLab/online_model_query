@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 from Alfred_plot import plot_alfred
 from mmlu_latency_plot import plot_mmlu_lat
 from mmlu_plot import plot_mmlu
@@ -12,11 +11,11 @@ from swarm_visualizer.utility.general_utils import (
 from Waymo_latency_plot import plot_waymo_lat
 from Waymo_plot import plot_waymo
 
-sns.set()
-xylabelsize = 20
+# sns.set()
+xylabelsize = 24
 titlesize = 26
-legendsize = 20
-ticksize = 18
+legendsize = 24
+ticksize = 20
 
 fig, ax_list = plt.subplot_mosaic(
     [
@@ -28,17 +27,25 @@ fig, ax_list = plt.subplot_mosaic(
 
 plt.subplots_adjust(hspace=0.1)
 ax_mmlu_sr = plot_mmlu(ax_=ax_list["mmlu_sr"])
+ax_mmlu_sr.grid(True)
 ax_waymo_sr = plot_waymo(ax_=ax_list["waymo_sr"])
+ax_waymo_sr.grid(True)
 ax_alfred_sr = plot_alfred(ax_=ax_list["alfred_sr"])
+ax_alfred_sr.grid(True)
 ax_mmlu_lat = plot_mmlu_lat(ax_=ax_list["mmlu_lat"])
+ax_mmlu_lat.grid(True)
 ax_waymo_lat = plot_waymo_lat(ax_=ax_list["waymo_lat"])
+ax_waymo_lat.grid(True)
 ax_alfred_lat = plot_alfred(ax_=ax_list["alfred_lat"], reward_metric="GC+PLW")
+ax_alfred_lat.grid(True)
 ax_rtx_sr = plot_rtx(ax_=ax_list["rtx_sr"])
+ax_rtx_sr.grid(True)
 ax_rtx_lat = plot_rtx_lat(ax_=ax_list["rtx_lat"])
+ax_rtx_lat.grid(True)
 
 set_axis_infos(
     ax_mmlu_sr,
-    ylabel="Cumulative Mean\n Reward",
+    ylabel="Cumulative Mean\nReward",
     title_str=r"$\bf{MMLU}$",
     ylim=(0.59, 0.91),
     xticks=list(np.arange(0, 12501, 4000)),
@@ -135,12 +142,11 @@ lgd = fig.legend(
     lines,
     labels,
     loc="upper center",
-    bbox_to_anchor=(0.5, 0.99),
+    bbox_to_anchor=(0.5, 1.01),
     fancybox=True,
     shadow=True,
     ncol=5,
     fontsize=legendsize,
     markerscale=10,
 )
-
 fig.savefig("plot/results.pdf", bbox_extra_artists=(lgd,), bbox_inches="tight")

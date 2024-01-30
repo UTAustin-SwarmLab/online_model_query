@@ -7,15 +7,14 @@ import seaborn as sns
 from sklearn.manifold import TSNE
 from utils import scale_to_01_range
 
-titlesize = 24
-xyticksize = 20
-legendsize = 26
-markersize = 55
+xyticksize = 32
+legendsize = 28
+markersize = 50
 
 
 def plot_alfred_tsne():
     # colors = ["red", "blue", "green", "black", "tan", "orange", "purple", "pink"]
-    colors = sns.color_palette("muted", 7)
+    colors = sns.color_palette("tab10")
     markers = ["o", "v", "s", "p", "x", "D", "P", "*"]
 
     ### load dataframes
@@ -56,7 +55,22 @@ def plot_alfred_tsne():
 
     task_types = task_df["task_type"].unique().tolist()
     task_types.sort()
-    fig = plt.figure(figsize=(15, 10))
+
+    # Define the order in which you want the legends to appear
+    legend_order = [
+        "pick_clean_then_place_in_recep",
+        "look_at_obj_in_light",
+        "pick_and_place_simple",
+        "pick_heat_then_place_in_recep",
+        "pick_cool_then_place_in_recep",
+        "pick_two_obj_and_place",
+        "pick_and_place_with_movable_recep",
+    ]
+
+    # Ensure that task_types is sorted according to legend_order
+    task_types = sorted(task_types, key=lambda x: legend_order.index(x))
+
+    fig = plt.figure(figsize=(18, 10))
     ax = fig.add_subplot(111)
 
     for ii, task_type in enumerate(task_types):
@@ -74,7 +88,7 @@ def plot_alfred_tsne():
 
         # convert the class color to matplotlib format
         color = colors[ii]
-        label_text = task_type
+        label_text = task_type.replace("_", " ").capitalize()
         marker = markers[0]
 
         # add a scatter plot with the corresponding color and label
@@ -87,20 +101,37 @@ def plot_alfred_tsne():
             marker=marker,
         )
 
+    # sort both labels and lines by labels in legend_order's order
+    legend_order = [
+        "pick_clean_then_place_in_recep",
+        "look_at_obj_in_light",
+        "pick_and_place_simple",
+        "pick_heat_then_place_in_recep",
+        "pick_cool_then_place_in_recep",
+        "pick_two_obj_and_place",
+        "pick_and_place_with_movable_recep",
+    ]
+    zipped = zip(legend_order, colors, markers)
+    zipped = sorted(zipped, key=lambda x: x[0])
+    legend_order, colors, markers = zip(*zipped)
     lines_labels = [ax.get_legend_handles_labels()]
     lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+    print(legend_order)
+    print(labels)
+    print(lines)
     lgd = ax.legend(
         lines,
         labels,
         loc="upper center",
-        bbox_to_anchor=(0.45, 1.33),
+        bbox_to_anchor=(0.45, 1.37),
         fancybox=True,
         shadow=True,
         ncol=2,
         fontsize=legendsize,
-        markerscale=1.5,
+        markerscale=2.5,
     )
-    # ax.set_title("T-SNE of MMLU embeddings", fontsize=titlesize)
+    ax.set_xlabel("Normalized Projected Dimension 1", fontsize=xyticksize)
+    ax.set_ylabel("Normalized Projected Dimension 2", fontsize=xyticksize)
     plt.xticks(fontsize=xyticksize)
     plt.yticks(fontsize=xyticksize)
 

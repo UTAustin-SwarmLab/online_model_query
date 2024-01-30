@@ -7,14 +7,12 @@ from swarm_visualizer.barplot import (
 )
 from swarm_visualizer.utility.general_utils import (
     set_axis_infos,
-    set_plot_properties,
 )
 
-sns.set()
-
-xylabelsize = 28
-legendsize = 20
-ticksize = 24
+colors = sns.color_palette("tab10", 7)
+xylabelsize = 32
+legendsize = 28
+ticksize = 32
 alpha = 0.05
 beta = 0.005
 bandits = {
@@ -23,8 +21,6 @@ bandits = {
     2: "HLSM",
 }
 data_path = "synced_data/csv/alfred_data/"
-colors = sns.color_palette("muted", 7)
-# ["red", "blue", "green", "black", "tan", "orange", "purple"]
 
 token_len = np.load(data_path + "instruct_token_length.npy")  # (13128,)
 token_len = token_len.reshape(13128)[:1641]
@@ -39,10 +35,24 @@ df["reward_latency"] = (
     0.5 * df["GC"] - alpha * np.log10(df["L"]) - beta * df["token_len"]
 )
 
-fig, ax = plt.subplots(figsize=(14, 10))
-set_plot_properties()
+fig, ax = plt.subplots(figsize=(18, 8))
+plt.grid()
 sns.barplot(
-    ax=ax, x="model", y="reward_latency", palette=colors, hue="task_type", data=df
+    ax=ax,
+    x="model",
+    y="reward_latency",
+    palette=colors,
+    hue="task_type",
+    data=df,
+    hue_order=[
+        "pick_clean_then_place_in_recep",
+        "look_at_obj_in_light",
+        "pick_and_place_simple",
+        "pick_heat_then_place_in_recep",
+        "pick_cool_then_place_in_recep",
+        "pick_two_obj_and_place",
+        "pick_and_place_with_movable_recep",
+    ],
 )
 ax.get_legend().remove()
 
@@ -55,16 +65,18 @@ set_axis_infos(
     xlabel="Models",
     ticks_size=ticksize,
 )
+# ax.set_yticks([0.0, 0.1])
 
 lines_labels = [ax.get_legend_handles_labels()]
 lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+labels = [label.replace("_", " ").capitalize() for label in labels]
 lgd = fig.legend(
     lines,
     labels,
     loc="upper center",
-    bbox_to_anchor=(0.5, 1.08),
+    bbox_to_anchor=(0.45, 1.22),
     fancybox=True,
-    shadow=False,  # True,
+    shadow=False,
     ncol=2,
     fontsize=legendsize,
     markerscale=2,
