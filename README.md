@@ -40,8 +40,8 @@ poetry lock && poetry install
 For the data (mainly the execution results of all models) needed to run the experiments, please download the data from [DownloadLink](https://utexas.box.com/s/zxt834xa1oh842nzfsijf6qpllp9fsb9). The data should be placed in the a folder named "synced_data" in the root directory of the repo.
 
 ## Usage
-The gym environment for the online model selection problem is implemented in the [envs](query/envs/) folder. 
-PPO and $\epsilon$-greedy policies which leverages these gym environments for the online model selection agent are implemented in the [policy](query/src/policy/) folder. We also put nont contextual policies modified from [this repo](https://github.com/david-cortes/contextualbandits) in the [policy](query/src/policy/) folder. The plotting and analysis scripts are in the [plot](query/src/plotting/) folder, and the results can be found in the [plot](plot/) folder.
+The gym environment for the online model selection problem is implemented in the "query/envs/" folder. 
+PPO and $\epsilon$-greedy policies which leverages these gym environments for the online model selection agent are implemented in the "query/src/policy/" folder. We also put nont contextual policies modified from [this repo](https://github.com/david-cortes/contextualbandits) in the "query/src/policy/" folder. The plotting and analysis scripts are in the "query/src/plotting/" folder, and the results can be found in the "plot" folder.
 
 ## Citation
 If you find this repo useful or the paper interesting, please cite our paper:
