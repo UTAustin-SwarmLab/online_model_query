@@ -36,8 +36,9 @@ For the installation of the required packages, see the [pyproject.toml](pyprojec
 ```bash
 poetry lock && poetry install
 ```
+The tutorial for the installation of the required packages can be found [install poetry](https://python-poetry.org/docs/#installing-with-the-sofficial-installer).
 
-For the data (mainly the execution results of all models) needed to run the experiments, please download the data from [DownloadLink](https://utexas.box.com/s/zxt834xa1oh842nzfsijf6qpllp9fsb9). The data should be placed in the a folder named "synced_data" in the root directory of the repo.
+For the data (mainly the execution results of all models) needed to run the experiments, please download the data from [download link](https://utexas.box.com/s/zxt834xa1oh842nzfsijf6qpllp9fsb9). The data should be placed in the a folder named "synced_data" in the root directory of the repo.
 
 ## Usage
 The gym environment for the online model selection problem is implemented in the "query/envs/" folder. 
