@@ -150,4 +150,4 @@ lgd = fig.legend(
     fontsize=legendsize,
     markerscale=10,
 )
-fig.savefig("plot/results.pdf", bbox_extra_artists=(lgd,), bbox_inches="tight")
+fig.savefig("plot/results.png", bbox_extra_artists=(lgd,), bbox_inches="tight")

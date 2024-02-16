@@ -1,3 +1,0 @@
-policy_type: "MlpPolicy"
-total_timesteps: 500
-env_name: "WaymoLatency-v1"
