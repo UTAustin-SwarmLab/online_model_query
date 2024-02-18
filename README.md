@@ -2,6 +2,7 @@
 The is the repo of **Online Foundation Model Selection in Robotics**. 
 
 Link to paper: [Online Foundation Model Selection in Robotics](https://arxiv.org/abs/2402.08570#:~:text=Foundation%20models%20have%20recently%20expanded,paid%2C%20closed%2Dsource%20options.)
+Blog post of the paper: [blog link](https://utaustin-swarmlab.github.io/2024/02/17/OnlineModelSelection.html)
 ## Table of Contents
 - [TLDR](#TLDR)
 - [Abstract](#abstract)
